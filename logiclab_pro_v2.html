@@ -1,0 +1,2557 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LogicLab Pro — Digital Logic Circuit Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        slate: {
+                            850: '#151e2e',
+                            900: '#0f172a',
+                            950: '#080d17',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #080d17;
+            color: #e2e8f0;
+            overflow: hidden;
+            user-select: none;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        canvas {
+            display: block;
+            touch-action: none;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.94);
+            backdrop-filter: blur(14px);
+            border-color: rgba(51, 65, 85, 0.8);
+        }
+        .tool-btn {
+            transition: all 0.14s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .tool-btn:hover {
+            transform: translateY(-1px);
+        }
+        .tool-btn:active {
+            transform: translateY(0px);
+        }
+    canvas { touch-action: none; }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col bg-slate-950 text-slate-200">
+
+    <!-- Top Header & Transport Controls -->
+    <header class="h-14 border-b border-slate-800 bg-slate-900/95 px-3 flex items-center justify-between gap-2 z-30 shrink-0 shadow-lg">
+        <!-- Brand -->
+        <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-600 flex items-center justify-center shadow-md shadow-emerald-500/20">
+                <svg class="w-5 h-5 text-slate-950" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-sm md:text-base font-bold text-slate-100 leading-tight flex items-center gap-2">
+                    LogicLab Pro
+                    <span class="hidden sm:inline-block text-[10px] font-mono bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded">v3.0</span>
+                </h1>
+                <p class="text-[11px] text-slate-400 hidden md:block">Interactive Digital Logic &amp; AI Assistant</p>
+            </div>
+        </div>
+
+        <!-- Simulation Transport Controls -->
+        <div class="flex items-center gap-1.5 sm:gap-2 bg-slate-950/70 p-1 rounded-xl border border-slate-800">
+            <button id="btn-run-pause" onclick="toggleSimulation()" title="Run / Pause Simulation (Space)"
+                class="tool-btn flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-600/30">
+                <span id="run-icon">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                </span>
+                <span id="run-text">Running</span>
+            </button>
+
+            <button id="btn-step" onclick="stepSimulation()" title="Step Single Clock Tick"
+                class="tool-btn flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">
+                <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7"/></svg>
+                <span class="hidden sm:inline">Step</span>
+            </button>
+
+            <div class="hidden xl:flex items-center gap-2 px-2.5 py-1 border-l border-slate-800">
+                <span class="text-[11px] text-slate-400 whitespace-nowrap">Clock:</span>
+                <input id="clock-speed-slider" type="range" min="1" max="40" value="4" class="w-20 accent-cyan-500 cursor-pointer">
+                <span id="clock-speed-label" class="text-xs font-mono text-cyan-400 w-14">2.0 Hz</span>
+            </div>
+        </div>
+
+        <!-- Canvas Actions -->
+        <div class="flex items-center gap-1.5 sm:gap-2">
+            <button id="io-bridge-btn" onclick="gpioBridge.togglePanel()" title="ESP32 I/O bridge"
+                class="tool-btn flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 border border-slate-700">
+                <span id="io-dot" class="w-2 h-2 rounded-full bg-slate-500"></span>
+                <span id="io-label" class="hidden sm:inline">I/O offline</span>
+            </button>
+            <button onclick="deleteSelected()" title="Delete Selected (Delete)"
+                class="tool-btn p-2 rounded-lg bg-slate-800 hover:bg-rose-950/70 text-slate-300 hover:text-rose-400 border border-slate-700">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+            <button onclick="confirmClearCanvas()" title="Clear Canvas"
+                class="tool-btn px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 border border-slate-700">
+                Clear
+            </button>
+        </div>
+    </header>
+
+    <!-- ESP32 I/O bridge panel -->
+    <div id="io-panel" class="hidden fixed top-14 right-2 z-40 w-72 max-h-[75vh] overflow-y-auto glass-panel border rounded-xl shadow-2xl p-3 text-xs">
+        <div class="flex items-center justify-between mb-1">
+            <span class="font-semibold text-slate-200">ESP32 I/O</span>
+            <span id="io-status" class="font-mono text-[11px] text-slate-400"></span>
+        </div>
+        <p id="io-note" class="text-[11px] text-slate-400 mb-2"></p>
+        <div class="mb-3 p-2 rounded-lg bg-slate-950/60 border border-slate-800 space-y-2">
+            <label class="block text-[11px] text-slate-400">Board address
+                <input id="io-host" type="text" spellcheck="false" placeholder="empty = this page, or e.g. 192.168.1.50"
+                    class="mt-1 w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 font-mono text-[11px] text-slate-200 outline-none focus:border-cyan-500">
+            </label>
+            <label class="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer">
+                <input id="io-auto" type="checkbox" class="accent-amber-500 w-3.5 h-3.5">Auto-retry every 3 s while offline (the link only drops after 20 s of silence)
+            </label>
+            <button id="io-connect" class="w-full px-2 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:opacity-60 text-white font-semibold text-xs">Connect I/O</button>
+            <p id="io-msg" class="text-[11px] min-h-[1rem]"></p>
+        </div>
+        <div id="io-pins" class="grid grid-cols-2 gap-1.5"></div>
+    </div>
+
+    <!-- Dynamic Island Command Center (Top Center Floating Pill) -->
+    <div class="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-full px-2 py-1.5 shadow-2xl flex items-center gap-1.5">
+        <button onclick="toggleSidebar('library')" id="island-btn-library"
+            class="px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all text-slate-300 hover:text-white hover:bg-slate-800">
+            <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            Library
+        </button>
+        <div class="w-px h-4 bg-slate-700"></div>
+        <button onclick="toggleSidebar('examples')" id="island-btn-examples"
+            class="px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all text-slate-300 hover:text-white hover:bg-slate-800">
+            <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            Examples
+        </button>
+        <div class="w-px h-4 bg-slate-700"></div>
+        <button onclick="toggleSidebar('ai')" id="island-btn-ai"
+            class="px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all text-slate-300 hover:text-white hover:bg-slate-800">
+            <svg class="w-3.5 h-3.5 text-purple-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+            AI Assistant
+        </button>
+        <div class="w-px h-4 bg-slate-700"></div>
+        <button onclick="toggleSidebar('projects')" id="island-btn-projects" class="px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all text-slate-300 hover:text-white hover:bg-slate-800">📁 Projects</button>
+        <div class="w-px h-4 bg-slate-700"></div>
+        <button onclick="toggleSidebar('workspace')" id="island-btn-workspace" class="px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all text-slate-300 hover:text-white hover:bg-slate-800">💾 My Projects</button>
+        <div class="w-px h-4 bg-slate-700"></div>
+        <button onclick="toggleSidebar('inspector')" id="island-btn-inspector"
+            class="px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all text-slate-300 hover:text-white hover:bg-slate-800">
+            <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+            Inspector
+        </button>
+    </div>
+
+    <!-- Main Workspace Body -->
+    <div class="flex-1 flex overflow-hidden relative">
+
+        <!-- Sidebar 1: Component Library -->
+        <aside id="sidebar-library" class="w-72 bg-slate-900/95 border-r border-slate-800 flex flex-col shrink-0 z-20 transition-all duration-200">
+            <div class="p-3 border-b border-slate-800 bg-slate-950/50 flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-cyan-400">Component Library</span>
+                <button onclick="closeAllSidebars()" class="text-slate-400 hover:text-white text-sm">✕</button>
+            </div>
+            <div class="p-2.5 border-b border-slate-800 bg-slate-950/40">
+                <input id="sidebar-search" type="text" placeholder="Search gates, MUX, FF..." oninput="filterSidebarComponents(this.value)"
+                    class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500">
+            </div>
+            <div id="sidebar-categories" class="flex-1 overflow-y-auto p-2 space-y-2"></div>
+            <div class="p-2.5 border-t border-slate-800 bg-slate-950/60 text-[10px] text-slate-400">
+                Click any component to place on canvas. Hold Shift for multiple placements.
+            </div>
+        </aside>
+
+        <!-- Sidebar 2: Comprehensive Examples -->
+        <aside id="sidebar-examples" class="hidden w-80 bg-slate-900/95 border-r border-slate-800 flex flex-col shrink-0 z-20 transition-all duration-200">
+            <div class="p-3 border-b border-slate-800 bg-slate-950/50 flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Circuit Examples</span>
+                <button onclick="closeAllSidebars()" class="text-slate-400 hover:text-white text-sm">✕</button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-3 space-y-4 text-xs">
+                <div>
+                    <h3 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Single Component Demos</h3>
+                    <div class="space-y-1.5">
+                        <button onclick="loadPresetCircuit('demo_and')" class="w-full text-left p-2 rounded-lg bg-slate-950/60 hover:bg-slate-800 border border-slate-800 flex items-center justify-between group">
+                            <div>
+                                <div class="font-medium text-slate-200">Single AND Gate Demo</div>
+                                <div class="text-[10px] text-slate-400">2 switches connected to AND &amp; LED</div>
+                            </div>
+                            <span class="text-emerald-400 font-mono text-[10px]">Load →</span>
+                        </button>
+                        <button onclick="loadPresetCircuit('demo_mux')" class="w-full text-left p-2 rounded-lg bg-slate-950/60 hover:bg-slate-800 border border-slate-800 flex items-center justify-between group">
+                            <div>
+                                <div class="font-medium text-slate-200">4-to-1 Multiplexer Demo</div>
+                                <div class="text-[10px] text-slate-400">Select lines choosing data inputs</div>
+                            </div>
+                            <span class="text-emerald-400 font-mono text-[10px]">Load →</span>
+                        </button>
+                        <button onclick="loadPresetCircuit('demo_dff')" class="w-full text-left p-2 rounded-lg bg-slate-950/60 hover:bg-slate-800 border border-slate-800 flex items-center justify-between group">
+                            <div>
+                                <div class="font-medium text-slate-200">D Flip-Flop Frequency Divider</div>
+                                <div class="text-[10px] text-slate-400">Clock toggling Q̄ back to D</div>
+                            </div>
+                            <span class="text-emerald-400 font-mono text-[10px]">Load →</span>
+                        </button>
+                        <button onclick="loadPresetCircuit('demo_sevseg')" class="w-full text-left p-2 rounded-lg bg-slate-950/60 hover:bg-slate-800 border border-slate-800 flex items-center justify-between group">
+                            <div>
+                                <div class="font-medium text-slate-200">7-Segment Decoder</div>
+                                <div class="text-[10px] text-slate-400">4-bit binary input to 7-segment display</div>
+                            </div>
+                            <span class="text-emerald-400 font-mono text-[10px]">Load →</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="border-t border-slate-800 pt-3">
+                    <h3 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Advanced Complex Circuits</h3>
+                    <div class="space-y-1.5">
+                        <button onclick="loadPresetCircuit('counter_7seg')" class="w-full text-left p-2 rounded-lg bg-slate-950/60 hover:bg-slate-800 border border-slate-800 flex items-center justify-between group">
+                            <div>
+                                <div class="font-medium text-slate-200">4-Bit Binary Counter + 7-Seg</div>
+                                <div class="text-[10px] text-slate-400">Clock generator driving 4-bit counter</div>
+                            </div>
+                            <span class="text-emerald-400 font-mono text-[10px]">Load →</span>
+                        </button>
+                        <button onclick="loadPresetCircuit('full_adder')" class="w-full text-left p-2 rounded-lg bg-slate-950/60 hover:bg-slate-800 border border-slate-800 flex items-center justify-between group">
+                            <div>
+                                <div class="font-medium text-slate-200">4-Bit Ripple Carry Adder</div>
+                                <div class="text-[10px] text-slate-400">Two 4-bit nibbles added with carry out</div>
+                            </div>
+                            <span class="text-emerald-400 font-mono text-[10px]">Load →</span>
+                        </button>
+                        <button onclick="loadPresetCircuit('mux_8to1')" class="w-full text-left p-2 rounded-lg bg-slate-950/60 hover:bg-slate-800 border border-slate-800 flex items-center justify-between group">
+                            <div>
+                                <div class="font-medium text-slate-200">8-to-1 Multiplexer Circuit</div>
+                                <div class="text-[10px] text-slate-400">Configurable 8 channel MUX with 3 selects</div>
+                            </div>
+                            <span class="text-emerald-400 font-mono text-[10px]">Load →</span>
+                        </button>
+                        <button onclick="loadPresetCircuit('sr_latch')" class="w-full text-left p-2 rounded-lg bg-slate-950/60 hover:bg-slate-800 border border-slate-800 flex items-center justify-between group">
+                            <div>
+                                <div class="font-medium text-slate-200">SR Latch Memory Cell</div>
+                                <div class="text-[10px] text-slate-400">Set &amp; Reset bistable multivibrator</div>
+                            </div>
+                            <span class="text-emerald-400 font-mono text-[10px]">Load →</span>
+                        </button>
+                        <button onclick="loadPresetCircuit('shift_reg')" class="w-full text-left p-2 rounded-lg bg-slate-950/60 hover:bg-slate-800 border border-slate-800 flex items-center justify-between group">
+                            <div>
+                                <div class="font-medium text-slate-200">8-Bit Shift Register</div>
+                                <div class="text-[10px] text-slate-400">Serial-in parallel-out shift register</div>
+                            </div>
+                            <span class="text-emerald-400 font-mono text-[10px]">Load →</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Sidebar 3: Gemini AI Assistant Chat -->
+        <aside id="sidebar-ai" class="hidden w-80 bg-slate-900/95 border-r border-slate-800 flex flex-col shrink-0 z-20 transition-all duration-200">
+            <div class="p-3 border-b border-slate-800 bg-slate-950/50 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-purple-300">Gemini AI Logic Assistant</span>
+                </div>
+                <button onclick="closeAllSidebars()" class="text-slate-400 hover:text-white text-sm">✕</button>
+            </div>
+            
+            <div class="p-2.5 bg-slate-950/40 border-b border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+                <span>Ask about digital design, gates &amp; boolean logic</span>
+                <button onclick="clearChatHistory()" class="text-slate-400 hover:text-slate-200 underline">Clear</button>
+            </div>
+
+            <!-- Chat Messages Container -->
+            <div id="ai-chat-messages" class="flex-1 overflow-y-auto p-3 space-y-3 text-xs">
+                <div class="bg-slate-950/80 border border-slate-800 p-2.5 rounded-xl text-slate-300">
+                    <p class="font-semibold text-purple-300 mb-1">Hello! I am your AI Logic Engineer.</p>
+                    <p class="text-[11px] text-slate-400 leading-relaxed">I can explain logic equations, help you design circuits, or debug wiring setups. What would you like to build today?</p>
+                </div>
+            </div>
+
+            <!-- Suggested Quick Prompts -->
+            <div class="p-2 border-t border-slate-800 bg-slate-950/60 flex flex-wrap gap-1">
+                <button onclick="sendQuickPrompt('How do I build a full adder using XOR and AND gates?')" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-700">Full Adder Design</button>
+                <button onclick="sendQuickPrompt('Explain the difference between D Flip-Flop and JK Flip-Flop')" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-700">Flip-Flop Types</button>
+                <button onclick="sendQuickPrompt('What is Karnaugh Map (K-Map) simplification?')" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-700">K-Map Guide</button>
+            </div>
+
+            <!-- Chat Input Form -->
+            <div class="p-2.5 border-t border-slate-800 bg-slate-950/80 flex gap-1.5">
+                <input id="ai-input" type="text" placeholder="Ask AI a logic question..." onkeydown="if(event.key==='Enter') sendAiMessage()"
+                    class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-purple-500">
+                <button onclick="sendAiMessage()" class="bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow">
+                    Send
+                </button>
+            </div>
+        </aside>
+
+        <!-- Center Canvas & Analyzer Area -->
+        <div class="flex-1 flex flex-col relative overflow-hidden">
+            <div id="canvas-container" class="flex-1 relative bg-slate-950 overflow-hidden cursor-crosshair">
+                <canvas id="circuit-canvas"></canvas>
+
+                <!-- Floating Mode Indicator -->
+                <div class="absolute top-3 left-3 pointer-events-none flex flex-col gap-2 z-10">
+                    <div id="mode-badge" class="glass-panel border px-3 py-1.5 rounded-lg text-xs flex items-center gap-2 shadow-lg pointer-events-auto">
+                        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                        <span id="mode-text" class="text-slate-200 font-medium">Select &amp; Wire Mode (Click pins to connect)</span>
+                        <button id="cancel-tool-btn" onclick="selectTool(null)" class="hidden text-rose-400 hover:text-rose-300 font-bold ml-1">✕</button>
+                    </div>
+                </div>
+
+                <!-- Floating Zoom & Analyzer Controls -->
+                <div class="absolute bottom-3 left-3 flex items-center gap-1.5 glass-panel border p-1.5 rounded-xl shadow-lg z-10">
+                    <button onclick="zoomCanvas(0.1)" title="Zoom In" class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                    </button>
+                    <span id="zoom-level" class="text-xs font-mono text-slate-400 px-1">100%</span>
+                    <button onclick="zoomCanvas(-0.1)" title="Zoom Out" class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4"/></svg>
+                    </button>
+                    <div class="h-4 w-px bg-slate-700 mx-0.5"></div>
+                    <button onclick="resetView()" title="Center View" class="px-2 py-1 rounded-lg hover:bg-slate-800 text-[11px] text-slate-300">Center</button>
+                    <div class="h-4 w-px bg-slate-700 mx-0.5"></div>
+                    <button onclick="toggleBottomPanel()" id="btn-toggle-analyzer" class="px-2.5 py-1 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/40 text-cyan-300 text-xs font-medium flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                        Logic Analyzer &amp; Truth Table
+                    </button>
+                </div>
+            </div>
+
+            <!-- Bottom Panel: Logic Analyzer & Truth Table -->
+            <div id="bottom-panel" class="h-52 border-t border-slate-800 bg-slate-900/95 flex flex-col shrink-0 transition-all duration-200 z-20">
+                <div class="h-9 px-3 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+                    <div class="flex items-center gap-2">
+                        <button onclick="switchBottomTab('analyzer')" id="tab-analyzer" class="px-3 py-1 rounded text-xs font-semibold bg-cyan-600/20 text-cyan-300 border border-cyan-500/30">
+                            Timing Waveform (Logic Analyzer)
+                        </button>
+                        <button onclick="switchBottomTab('truthtable')" id="tab-truthtable" class="px-3 py-1 rounded text-xs font-medium text-slate-400 hover:text-slate-200">
+                            Live Truth Table
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-[11px] text-slate-400 hidden sm:inline">Right-click component or wire to probe scope.</span>
+                        <button onclick="clearWaveformHistory()" class="text-[11px] text-slate-300 hover:text-white bg-slate-800 px-2 py-0.5 rounded border border-slate-700">Clear Waves</button>
+                        <button onclick="toggleBottomPanel()" class="text-slate-400 hover:text-white px-1.5 text-sm" title="Collapse Panel">▼</button>
+                    </div>
+                </div>
+
+                <div id="view-analyzer" class="flex-1 flex overflow-hidden">
+                    <div id="analyzer-channels" class="w-40 border-r border-slate-800 bg-slate-950/50 overflow-y-auto p-1.5 space-y-1 shrink-0"></div>
+                    <div class="flex-1 relative bg-slate-950 overflow-hidden" id="waveform-container">
+                        <canvas id="waveform-canvas"></canvas>
+                    </div>
+                </div>
+
+                <div id="view-truthtable" class="hidden flex-1 overflow-auto p-3 bg-slate-950">
+                    <div class="max-w-4xl mx-auto">
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-xs text-slate-400">Evaluates input combinations against outputs:</p>
+                            <button onclick="generateTruthTable()" class="px-2.5 py-1 rounded bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 text-xs">
+                                Refresh Table
+                            </button>
+                        </div>
+                        <div id="truth-table-container" class="overflow-x-auto rounded-lg border border-slate-800"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <aside id="sidebar-projects" class="hidden w-80 bg-slate-900/95 border-r border-slate-800 flex flex-col shrink-0 z-20">
+<div class="p-3 border-b border-slate-800 bg-slate-950/50 flex items-center justify-between"><span class="text-xs font-bold uppercase tracking-wider text-rose-400">Projects (10)</span><button onclick="closeAllSidebars()" class="text-slate-400 hover:text-white text-sm">✕</button></div>
+<div id="projects-list" class="flex-1 overflow-y-auto p-3 space-y-2 text-xs"></div></aside>
+<aside id="sidebar-workspace" class="hidden w-80 bg-slate-900/95 border-r border-slate-800 flex flex-col shrink-0 z-20">
+<div class="p-3 border-b border-slate-800 bg-slate-950/50 flex items-center justify-between"><span class="text-xs font-bold uppercase tracking-wider text-sky-400">My Projects</span><button onclick="closeAllSidebars()" class="text-slate-400 hover:text-white text-sm">✕</button></div>
+<div class="p-3 space-y-2 border-b border-slate-800 text-xs"><div id="ws-current" class="text-slate-400"></div>
+<div class="flex gap-1.5"><input id="ws-name" placeholder="New project name" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-200 outline-none focus:border-sky-500"><button onclick="wsNew()" class="px-2.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-semibold">+ New</button></div>
+<button onclick="wsSave()" class="w-full py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold">💾 Save current project</button></div>
+<div id="ws-list" class="flex-1 overflow-y-auto p-3 space-y-1.5 text-xs"></div></aside>
+
+        <!-- Sidebar 4: Component Inspector (Right Side) -->
+        <aside id="sidebar-inspector" class="hidden w-72 bg-slate-900/95 border-l border-slate-800 flex flex-col shrink-0 z-20 transition-all duration-200">
+            <div class="p-3 border-b border-slate-800 bg-slate-950/50 flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-amber-400">Component Inspector</span>
+                <span id="inspector-type-badge" class="text-[10px] font-mono bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700">NONE</span>
+            </div>
+
+            <div id="inspector-empty" class="flex-1 flex flex-col items-center justify-center p-6 text-center text-slate-500">
+                <svg class="w-10 h-10 mb-2 text-slate-700" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                <p class="text-xs font-medium text-slate-400">No Component Selected</p>
+                <p class="text-[11px] mt-1 leading-relaxed">Click any component on canvas to configure pins, bit widths, or labels.</p>
+            </div>
+
+            <div id="inspector-content" class="hidden flex-1 overflow-y-auto p-3 space-y-4 text-xs">
+                <div class="space-y-2.5 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
+                    <div>
+                        <label class="block text-[11px] font-medium text-slate-400 mb-1">Designator Label</label>
+                        <input id="insp-label" type="text" maxlength="12" oninput="updateCompOption('label', this.value)"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-100 font-mono focus:outline-none focus:border-amber-500">
+                    </div>
+                    <div class="flex items-center justify-between pt-1">
+                        <span class="text-[11px] text-slate-300">Waveform Probe</span>
+                        <input id="insp-probe" type="checkbox" onchange="updateCompOption('probed', this.checked)" class="accent-amber-500 w-4 h-4 cursor-pointer rounded">
+                    </div>
+                </div>
+                <div id="insp-dynamic-options" class="space-y-3"></div>
+                <div class="pt-2 border-t border-slate-800 flex gap-2">
+                    <button onclick="duplicateSelected()" class="flex-1 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-medium">Duplicate</button>
+                    <button onclick="deleteSelected()" class="flex-1 py-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/40 text-rose-300 font-medium">Delete</button>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast-box" class="fixed bottom-56 left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 transition-opacity duration-200">
+        <div id="toast-msg" class="bg-slate-800 text-slate-100 border border-slate-600 px-4 py-2 rounded-full text-xs font-medium shadow-xl"></div>
+    </div>
+
+    <!-- Clear Confirmation Modal -->
+    <div id="confirm-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full p-5 shadow-2xl">
+            <h3 class="text-base font-bold text-white mb-2">Clear Workspace</h3>
+            <p class="text-xs text-slate-300 leading-relaxed mb-5">Remove all components and wires from the canvas?</p>
+            <div class="flex items-center justify-end gap-2">
+                <button onclick="closeConfirmModal()" class="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300">Cancel</button>
+                <button onclick="executeClearCanvas()" class="px-4 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-xs font-semibold text-white">Yes, Clear All</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+/**
+ * LogicLab Pro — Advanced Digital Logic Simulator with Gemini AI & Dynamic Island
+ */
+
+const GRID_SIZE = 20;
+const canvas = document.getElementById('circuit-canvas');
+const ctx = canvas.getContext('2d');
+const waveCanvas = document.getElementById('waveform-canvas');
+const waveCtx = waveCanvas.getContext('2d');
+
+let state = {
+    components: [],
+    wires: [],
+    selectedTool: null,
+    selectedCompId: null,
+    selectedWireId: null,
+    draggingCompId: null,
+    dragOffset: { x: 0, y: 0 },
+    wiringStartPin: null,
+    mousePos: { x: 0, y: 0 },
+    hoveredPin: null,
+    isRunning: true,
+    clockFreqHz: 2.0,
+    tickCount: 0,
+    lastClockTime: 0,
+    pulsePhase: 0,
+    pan: { x: 0, y: 0 },
+    zoom: 1.0,
+    isPanning: false,
+    panStart: { x: 0, y: 0 },
+    waveformHistory: [],
+    maxWaveSamples: 150,
+    activeSidebar: 'library' // 'library' | 'examples' | 'ai' | 'inspector' | null
+};
+
+let nextId = 1;
+const generateId = (prefix = 'id') => `${prefix}_${nextId++}`;
+
+function showToast(text) {
+    const box = document.getElementById('toast-box');
+    const msg = document.getElementById('toast-msg');
+    msg.textContent = text;
+    box.classList.remove('opacity-0');
+    setTimeout(() => box.classList.add('opacity-0'), 2400);
+}
+
+// --- Dynamic Island Sidebar Manager ---
+function toggleSidebar(sidebarName) {
+    if (state.activeSidebar === sidebarName) {
+        closeAllSidebars();
+        return;
+    }
+    state.activeSidebar = sidebarName;
+    
+    document.getElementById('sidebar-library').classList.add('hidden');
+    document.getElementById('sidebar-examples').classList.add('hidden');
+    document.getElementById('sidebar-ai').classList.add('hidden');
+    document.getElementById('sidebar-inspector').classList.add('hidden');
+
+    ['library', 'examples', 'ai', 'inspector'].forEach(s => {
+        const btn = document.getElementById(`island-btn-${s}`);
+        if (btn) btn.className = "px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all text-slate-300 hover:text-white hover:bg-slate-800";
+    });
+
+    const activeEl = document.getElementById(`sidebar-${sidebarName}`);
+    const activeBtn = document.getElementById(`island-btn-${sidebarName}`);
+    if (activeEl) activeEl.classList.remove('hidden');
+    
+    const colors = { library: 'bg-cyan-600 text-white shadow', examples: 'bg-emerald-600 text-white shadow', ai: 'bg-purple-600 text-white shadow', inspector: 'bg-amber-600 text-white shadow' };
+    if (activeBtn) activeBtn.className = `px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all ${colors[sidebarName]}`;
+
+    if (sidebarName === 'inspector') {
+        renderInspectorPanel();
+    }
+}
+
+function closeAllSidebars() {
+    state.activeSidebar = null;
+    document.getElementById('sidebar-library').classList.add('hidden');
+    document.getElementById('sidebar-examples').classList.add('hidden');
+    document.getElementById('sidebar-ai').classList.add('hidden');
+    document.getElementById('sidebar-inspector').classList.add('hidden');
+
+    ['library', 'examples', 'ai', 'inspector'].forEach(s => {
+        const btn = document.getElementById(`island-btn-${s}`);
+        if (btn) btn.className = "px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all text-slate-300 hover:text-white hover:bg-slate-800";
+    });
+}
+
+// --- Component Library Data & Rendering ---
+const SIDEBAR_CATEGORIES = [
+    {
+        id: 'io',
+        title: 'I/O & Sources',
+        badgeColor: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+        items: [
+            { type: 'SWITCH', name: 'Toggle Switch', sub: 'Toggle / Momentary' },
+            { type: 'BUTTON', name: 'Push Button', sub: 'Active High / Low' },
+            { type: 'CLOCK', name: 'Clock Generator', sub: '0.5–20 Hz' },
+            { type: 'CONST', name: 'Logic Constant', sub: 'Constant 0 or 1' },
+            { type: 'LED', name: 'LED Indicator', sub: '5 Colors' },
+            { type: 'GPIO_IN', name: 'ESP32 Pin In', sub: 'Reads a real GPIO' },
+            { type: 'GPIO_OUT', name: 'ESP32 Pin Out', sub: 'Drives a real GPIO' },
+            { type: 'SEVENSEG', name: '7-Segment Display', sub: 'BCD / Raw 7-pin' },
+            { type: 'PROBE', name: 'Logic Probe', sub: '1, 4, or 8-bit bus' }
+        ]
+    },
+    {
+        id: 'gates',
+        title: 'Basic Logic Gates',
+        badgeColor: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20',
+        items: [
+            { type: 'BUFFER', name: 'Buffer', sub: '1-bit Non-Inverting' },
+            { type: 'NOT', name: 'NOT (Inverter)', sub: '1-bit Inverter' },
+            { type: 'AND', name: 'AND Gate', sub: '2 to 8 Inputs' },
+            { type: 'NAND', name: 'NAND Gate', sub: '2 to 8 Inputs' },
+            { type: 'OR', name: 'OR Gate', sub: '2 to 8 Inputs' },
+            { type: 'NOR', name: 'NOR Gate', sub: '2 to 8 Inputs' },
+            { type: 'XOR', name: 'XOR Gate', sub: '2 to 8 Inputs' },
+            { type: 'XNOR', name: 'XNOR Gate', sub: '2 to 8 Inputs' }
+        ]
+    },
+    {
+        id: 'plexers',
+        title: 'Combinational & Plexers',
+        badgeColor: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+        items: [
+            { type: 'MUX', name: 'Multiplexer (MUX)', sub: '2, 4, 8 inputs' },
+            { type: 'DEMUX', name: 'Demultiplexer (DEMUX)', sub: '2, 4, 8 outputs' },
+            { type: 'DECODER', name: 'Binary Decoder', sub: '2:4 or 3:8 + EN' },
+            { type: 'ENCODER', name: 'Priority Encoder', sub: '4:2 or 8:3' },
+            { type: 'ADDER', name: 'N-Bit Adder', sub: '1, 2, 4-bit + Cin/Cout' },
+            { type: 'COMPARATOR', name: 'Magnitude Comparator', sub: 'A>B, A=B, A<B' }
+        ]
+    },
+    {
+        id: 'sequential',
+        title: 'Sequential & Memory',
+        badgeColor: 'text-purple-400 bg-purple-500/10 border-purple-500/20',
+        items: [
+            { type: 'SRLATCH', name: 'SR Latch', sub: 'Gated / Ungated' },
+            { type: 'DFF', name: 'D Flip-Flop', sub: 'Rising/Falling Edge' },
+            { type: 'JKFF', name: 'JK Flip-Flop', sub: 'Master-Slave / Edge' },
+            { type: 'TFF', name: 'T Flip-Flop', sub: 'Toggle Flip-Flop' },
+            { type: 'COUNTER', name: 'N-Bit Counter', sub: 'Up / Down Counter' },
+            { type: 'SHIFTREG', name: 'Shift Register', sub: '4 or 8-bit' },
+            { type: 'REGISTER', name: 'Parallel Register', sub: 'With Load Enable' }
+        ]
+    }
+];
+
+const collapsedCategories = {};
+function renderSidebar(filterText = '') {
+    const container = document.getElementById('sidebar-categories');
+    const query = filterText.trim().toLowerCase();
+
+    container.innerHTML = SIDEBAR_CATEGORIES.map(cat => {
+        const filtered = cat.items.filter(item => item.name.toLowerCase().includes(query) || item.sub.toLowerCase().includes(query));
+        if (filtered.length === 0) return '';
+        const isCollapsed = !!collapsedCategories[cat.id] && !query;
+        return `
+            <div class="rounded-xl border border-slate-800/90 bg-slate-950/40 overflow-hidden mb-2">
+                <button onclick="toggleCategory('${cat.id}')" class="w-full px-2.5 py-2 flex items-center justify-between text-left hover:bg-slate-800/40">
+                    <span class="text-[11px] font-semibold px-2 py-0.5 rounded border ${cat.badgeColor}">${cat.title}</span>
+                    <span class="text-slate-400 text-xs font-mono">${isCollapsed ? '+' : '−'}</span>
+                </button>
+                <div class="${isCollapsed ? 'hidden' : 'p-1.5 pt-0 space-y-1'}">
+                    ${filtered.map(item => `
+                        <button onclick="selectTool('${item.type}')"
+                            class="w-full text-left px-2.5 py-1.5 rounded-lg border transition-all flex items-center justify-between group ${state.selectedTool === item.type ? 'bg-cyan-950/70 border-cyan-500 text-white' : 'bg-slate-900/80 hover:bg-slate-800 border-slate-800 text-slate-200'}">
+                            <div>
+                                <div class="text-xs font-medium leading-tight">${item.name}</div>
+                                <div class="text-[10px] text-slate-400">${item.sub}</div>
+                            </div>
+                            <span class="text-[10px] font-mono text-slate-500 group-hover:text-cyan-400">+</span>
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function toggleCategory(id) {
+    collapsedCategories[id] = !collapsedCategories[id];
+    renderSidebar(document.getElementById('sidebar-search').value);
+}
+
+function filterSidebarComponents(val) {
+    renderSidebar(val);
+}
+
+function selectTool(toolType) {
+    state.selectedTool = toolType;
+    state.wiringStartPin = null;
+    renderSidebar(document.getElementById('sidebar-search').value);
+    const modeText = document.getElementById('mode-text');
+    const cancelBtn = document.getElementById('cancel-tool-btn');
+    if (toolType) {
+        modeText.textContent = `Click to place: ${toolType} (Shift for multi)`;
+        cancelBtn.classList.remove('hidden');
+    } else {
+        modeText.textContent = 'Select & Wire Mode';
+        cancelBtn.classList.add('hidden');
+    }
+}
+
+// --- Gemini AI Assistant Chat Logic ---
+const chatHistory = [];
+
+async function sendAiMessage(promptText = null) {
+    const inputEl = document.getElementById('ai-input');
+    const query = promptText || inputEl.value.trim();
+    if (!query) return;
+    if (!promptText) inputEl.value = '';
+
+    appendChatMessage('user', query);
+    appendChatMessage('model', 'Thinking...', true);
+
+    try {
+        const payload = {
+            contents: [
+                { role: 'user', parts: [{ text: query }] }
+            ],
+            systemInstruction: {
+                parts: [{ text: "You are an expert digital logic design engineer and circuit debugging assistant. Provide clear, accurate, and concise guidance on logic gates, boolean algebra, multiplexers, flip-flops, and hardware description." }]
+            }
+        };
+
+        const apiKey = "";
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+        
+        let response = null;
+        for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+                response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (response.ok) break;
+            } catch (err) {
+                if (attempt === 2) throw err;
+                await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
+            }
+        }
+
+        const result = await response.json();
+        const candidate = result.candidates?.[0];
+        const replyText = candidate?.content?.parts?.[0]?.text || "I couldn't generate a response. Please try again.";
+
+        removeLoadingMessage();
+        appendChatMessage('model', replyText);
+    } catch (e) {
+        removeLoadingMessage();
+        appendChatMessage('model', 'Error connecting to Gemini API. Please check your network.');
+    }
+}
+
+function sendQuickPrompt(text) {
+    sendAiMessage(text);
+}
+
+function appendChatMessage(role, text, isLoading = false) {
+    const container = document.getElementById('ai-chat-messages');
+    const div = document.createElement('div');
+    div.className = isLoading ? 'loading-msg p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 text-slate-400 italic' : (role === 'user' ? 'p-2.5 rounded-xl bg-purple-950/40 border border-purple-900/50 text-slate-200 ml-4' : 'p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-slate-300');
+    div.textContent = text;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function removeLoadingMessage() {
+    const container = document.getElementById('ai-chat-messages');
+    const loadingEl = container.querySelector('.loading-msg');
+    if (loadingEl) loadingEl.remove();
+}
+
+function clearChatHistory() {
+    const container = document.getElementById('ai-chat-messages');
+    container.innerHTML = `<div class="bg-slate-950/80 border border-slate-800 p-2.5 rounded-xl text-slate-300"><p class="font-semibold text-purple-300 mb-1">Chat cleared.</p></div>`;
+}
+
+// --- Component Geometry & Simulation Engine (Same robust logic) ---
+function buildComponentGeometry(comp) {
+    const opt = comp.options;
+    const inputs = [];
+    const outputs = [];
+    let w = 80, h = 52;
+
+    const distributeY = (count, spacing = 18) => {
+        if (count === 1) return [0];
+        const total = (count - 1) * spacing;
+        return Array.from({ length: count }, (_, i) => -total / 2 + i * spacing);
+    };
+
+    switch (comp.type) {
+        case 'SWITCH':
+        case 'BUTTON':
+        case 'CLOCK':
+        case 'CONST':
+            w = 68; h = 42;
+            outputs.push({ name: 'Q', dx: w / 2, dy: 0 });
+            break;
+        case 'GPIO_IN':
+            w = 92; h = 42;
+            outputs.push({ name: 'Q', dx: w / 2, dy: 0 });
+            break;
+        case 'GPIO_OUT':
+            w = 92; h = 42;
+            inputs.push({ name: 'IN', dx: -w / 2, dy: 0 });
+            break;
+        case 'LED':
+            w = 58; h = 44;
+            inputs.push({ name: 'IN', dx: -w / 2, dy: 0 });
+            break;
+        case 'PROBE':
+            const bits = opt.bits || 4;
+            w = 72; h = Math.max(48, bits * 18 + 16);
+            const ys = distributeY(bits, 18);
+            for (let i = 0; i < bits; i++) inputs.push({ name: `B${i}`, dx: -w / 2, dy: ys[i] });
+            break;
+        case 'SEVENSEG':
+            const isRaw = opt.mode === 'RAW';
+            const count = isRaw ? 7 : 4;
+            w = 88; h = isRaw ? 148 : 108;
+            const sYs = distributeY(count, 18);
+            const labels = isRaw ? ['a', 'b', 'c', 'd', 'e', 'f', 'g'] : ['D0', 'D1', 'D2', 'D3'];
+            for (let i = 0; i < count; i++) inputs.push({ name: labels[i], dx: -w / 2, dy: sYs[i] });
+            break;
+        case 'BUFFER':
+        case 'NOT':
+            w = 70; h = 44;
+            inputs.push({ name: 'A', dx: -w / 2, dy: 0 });
+            outputs.push({ name: 'Y', dx: w / 2, dy: 0 });
+            break;
+        case 'AND':
+        case 'NAND':
+        case 'OR':
+        case 'NOR':
+        case 'XOR':
+        case 'XNOR':
+            const numIn = opt.numInputs || 2;
+            w = 84; h = Math.max(52, numIn * 18 + 16);
+            const gYs = distributeY(numIn, 18);
+            for (let i = 0; i < numIn; i++) inputs.push({ name: `I${i}`, dx: -w / 2, dy: gYs[i] });
+            outputs.push({ name: 'Y', dx: w / 2, dy: 0 });
+            break;
+        case 'MUX':
+            const ch = opt.channels || 4;
+            const selBits = Math.log2(ch);
+            const totalIn = ch + selBits;
+            w = 94; h = Math.max(76, totalIn * 18 + 20);
+            const mYs = distributeY(totalIn, 18);
+            for (let i = 0; i < ch; i++) inputs.push({ name: `D${i}`, dx: -w / 2, dy: mYs[i] });
+            for (let s = 0; s < selBits; s++) inputs.push({ name: `S${s}`, dx: -w / 2, dy: mYs[ch + s] });
+            outputs.push({ name: 'Y', dx: w / 2, dy: 0 });
+            break;
+        case 'DEMUX':
+            const dCh = opt.channels || 4;
+            const dSelBits = Math.log2(dCh);
+            const dTotalIn = 1 + dSelBits;
+            w = 94; h = Math.max(76, Math.max(dTotalIn, dCh) * 18 + 20);
+            const dmInYs = distributeY(dTotalIn, 18);
+            inputs.push({ name: 'DIN', dx: -w / 2, dy: dmInYs[0] });
+            for (let s = 0; s < dSelBits; s++) inputs.push({ name: `S${s}`, dx: -w / 2, dy: dmInYs[1 + s] });
+            const dmOutYs = distributeY(dCh, 18);
+            for (let i = 0; i < dCh; i++) outputs.push({ name: `Y${i}`, dx: w / 2, dy: dmOutYs[i] });
+            break;
+        case 'DECODER':
+            const decBits = opt.inBits || 2;
+            const outCount = 1 << decBits;
+            const hasEnable = opt.hasEnable !== false;
+            w = 96; h = Math.max(84, outCount * 18 + 20);
+            const decInYs = distributeY(decBits + (hasEnable ? 1 : 0), 20);
+            for (let i = 0; i < decBits; i++) inputs.push({ name: `A${i}`, dx: -w / 2, dy: decInYs[i] });
+            if (hasEnable) inputs.push({ name: 'EN', dx: -w / 2, dy: decInYs[decBits] });
+            const decOutYs = distributeY(outCount, 18);
+            for (let o = 0; o < outCount; o++) outputs.push({ name: `Y${o}`, dx: w / 2, dy: decOutYs[o] });
+            break;
+        case 'ENCODER':
+            const encOutBits = opt.outBits || 2;
+            const encInCount = 1 << encOutBits;
+            w = 96; h = Math.max(84, encInCount * 18 + 20);
+            const encInYs = distributeY(encInCount, 18);
+            for (let i = 0; i < encInCount; i++) inputs.push({ name: `I${i}`, dx: -w / 2, dy: encInYs[i] });
+            const encOutYs = distributeY(encOutBits + 1, 20);
+            for (let o = 0; o < encOutBits; o++) outputs.push({ name: `Y${o}`, dx: w / 2, dy: encOutYs[o] });
+            outputs.push({ name: 'V', dx: w / 2, dy: encOutYs[encOutBits] });
+            break;
+        case 'ADDER':
+            const addBits = opt.bits || 1;
+            w = 98; h = Math.max(76, (addBits * 2 + 1) * 18 + 18);
+            const addInYs = distributeY(addBits * 2 + 1, 18);
+            for (let i = 0; i < addBits; i++) inputs.push({ name: `A${i}`, dx: -w / 2, dy: addInYs[i] });
+            for (let i = 0; i < addBits; i++) inputs.push({ name: `B${i}`, dx: -w / 2, dy: addInYs[addBits + i] });
+            inputs.push({ name: 'Cin', dx: -w / 2, dy: addInYs[addBits * 2] });
+            const addOutYs = distributeY(addBits + 1, 20);
+            for (let i = 0; i < addBits; i++) outputs.push({ name: `S${i}`, dx: w / 2, dy: addOutYs[i] });
+            outputs.push({ name: 'Cout', dx: w / 2, dy: addOutYs[addBits] });
+            break;
+        case 'COMPARATOR':
+            const cmpBits = opt.bits || 2;
+            w = 98; h = Math.max(76, cmpBits * 2 * 18 + 18);
+            const cmpInYs = distributeY(cmpBits * 2, 18);
+            for (let i = 0; i < cmpBits; i++) inputs.push({ name: `A${i}`, dx: -w / 2, dy: cmpInYs[i] });
+            for (let i = 0; i < cmpBits; i++) inputs.push({ name: `B${i}`, dx: -w / 2, dy: cmpInYs[cmpBits + i] });
+            const cmpOutYs = distributeY(3, 22);
+            outputs.push({ name: 'A>B', dx: w / 2, dy: cmpOutYs[0] });
+            outputs.push({ name: 'A=B', dx: w / 2, dy: cmpOutYs[1] });
+            outputs.push({ name: 'A<B', dx: w / 2, dy: cmpOutYs[2] });
+            break;
+        case 'SRLATCH':
+            w = 90; h = 76;
+            const srIns = opt.gated ? ['S', 'EN', 'R'] : ['S', 'R'];
+            const srInYs = distributeY(srIns.length, 20);
+            srIns.forEach((n, i) => inputs.push({ name: n, dx: -w / 2, dy: srInYs[i] }));
+            const srOuts = opt.showQBar !== false ? ['Q', 'Q̄'] : ['Q'];
+            const srOutYs = distributeY(srOuts.length, 26);
+            srOuts.forEach((n, i) => outputs.push({ name: n, dx: w / 2, dy: srOutYs[i] }));
+            break;
+        case 'DFF':
+        case 'JKFF':
+        case 'TFF':
+            w = 94; h = 76;
+            const ffPins = comp.type === 'JKFF' ? ['J', 'CLK', 'K'] : (comp.type === 'TFF' ? ['T', 'CLK'] : ['D', 'CLK']);
+            if (opt.asyncSR) { ffPins.unshift('PRE'); ffPins.push('CLR'); }
+            const ffInYs = distributeY(ffPins.length, 18);
+            ffPins.forEach((n, i) => inputs.push({ name: n, dx: -w / 2, dy: ffInYs[i] }));
+            const ffOuts = opt.showQBar !== false ? ['Q', 'Q̄'] : ['Q'];
+            const ffOutYs = distributeY(ffOuts.length, 28);
+            ffOuts.forEach((n, i) => outputs.push({ name: n, dx: w / 2, dy: ffOutYs[i] }));
+            break;
+        case 'COUNTER':
+            const cntBits = opt.bits || 4;
+            w = 98; h = Math.max(88, cntBits * 18 + 22);
+            const cntInYs = distributeY(3, 22);
+            inputs.push({ name: 'CLK', dx: -w / 2, dy: cntInYs[0] });
+            inputs.push({ name: 'EN', dx: -w / 2, dy: cntInYs[1] });
+            inputs.push({ name: 'RST', dx: -w / 2, dy: cntInYs[2] });
+            const cntOutYs = distributeY(cntBits + 1, 18);
+            for (let i = 0; i < cntBits; i++) outputs.push({ name: `Q${i}`, dx: w / 2, dy: cntOutYs[i] });
+            outputs.push({ name: 'TC', dx: w / 2, dy: cntOutYs[cntBits] });
+            break;
+        case 'SHIFTREG':
+            const sregBits = opt.bits || 4;
+            w = 98; h = Math.max(88, sregBits * 18 + 22);
+            const sregInYs = distributeY(3, 22);
+            inputs.push({ name: 'DIN', dx: -w / 2, dy: sregInYs[0] });
+            inputs.push({ name: 'CLK', dx: -w / 2, dy: sregInYs[1] });
+            inputs.push({ name: 'RST', dx: -w / 2, dy: sregInYs[2] });
+            const sregOutYs = distributeY(sregBits, 18);
+            for (let i = 0; i < sregBits; i++) outputs.push({ name: `Q${i}`, dx: w / 2, dy: sregOutYs[i] });
+            break;
+        case 'REGISTER':
+            const regBits = opt.bits || 4;
+            w = 98; h = Math.max(96, (regBits + 3) * 17 + 16);
+            const regInYs = distributeY(regBits + 3, 17);
+            for (let i = 0; i < regBits; i++) inputs.push({ name: `D${i}`, dx: -w / 2, dy: regInYs[i] });
+            inputs.push({ name: 'LOAD', dx: -w / 2, dy: regInYs[regBits] });
+            inputs.push({ name: 'CLK', dx: -w / 2, dy: regInYs[regBits + 1] });
+            inputs.push({ name: 'RST', dx: -w / 2, dy: regInYs[regBits + 2] });
+            const regOutYs = distributeY(regBits, 18);
+            for (let i = 0; i < regBits; i++) outputs.push({ name: `Q${i}`, dx: w / 2, dy: regOutYs[i] });
+            break;
+    }
+
+    comp.w = w; comp.h = h;
+    comp.inputs = inputs; comp.outputs = outputs;
+    const oldIn = comp.inputValues || [];
+    const oldOut = comp.outputValues || [];
+    comp.inputValues = inputs.map((_, i) => oldIn[i] || 0);
+    comp.outputValues = outputs.map((_, i) => oldOut[i] || 0);
+
+    state.wires = state.wires.filter(wire => {
+        if (wire.fromCompId === comp.id && wire.fromPinIdx >= outputs.length) return false;
+        if (wire.toCompId === comp.id && wire.toPinIdx >= inputs.length) return false;
+        return true;
+    });
+}
+
+function getDefaultOptions(type) {
+    switch (type) {
+        case 'SWITCH': return { mode: 'TOGGLE', initialState: 0 };
+        case 'BUTTON': return { activeLow: false };
+        case 'CLOCK': return { freq: 2.0, duty: 50 };
+        case 'CONST': return { constVal: 1 };
+        case 'LED': return { color: '#10b981', activeLow: false };
+        case 'GPIO_IN': return { pin: window.gpioBridge ? gpioBridge.defaultPin(type) : 34, pull: 'NONE', invert: false };
+        case 'GPIO_OUT': return { pin: window.gpioBridge ? gpioBridge.defaultPin(type) : 2, invert: false };
+        case 'SEVENSEG': return { mode: 'BCD', color: '#f43f5e' };
+        case 'PROBE': return { bits: 4 };
+        case 'BUFFER':
+        case 'NOT': return {};
+        case 'AND':
+        case 'NAND':
+        case 'OR':
+        case 'NOR':
+        case 'XOR':
+        case 'XNOR': return { numInputs: 2, invertInputsMask: 0 };
+        case 'MUX': return { channels: 4 };
+        case 'DEMUX': return { channels: 4 };
+        case 'DECODER': return { inBits: 2, hasEnable: true };
+        case 'ENCODER': return { outBits: 2 };
+        case 'ADDER': return { bits: 1 };
+        case 'COMPARATOR': return { bits: 2 };
+        case 'SRLATCH': return { gated: false, showQBar: true };
+        case 'DFF':
+        case 'JKFF':
+        case 'TFF': return { edge: 'RISING', asyncSR: false, showQBar: true };
+        case 'COUNTER': return { bits: 4, direction: 'UP', resetType: 'ASYNC' };
+        case 'SHIFTREG': return { bits: 4, direction: 'RIGHT' };
+        case 'REGISTER': return { bits: 4 };
+        default: return {};
+    }
+}
+
+function getDefaultLabelPrefix(type) {
+    const map = {
+        SWITCH: 'SW', BUTTON: 'BTN', CLOCK: 'CLK', CONST: 'VCC', LED: 'LED', GPIO_IN: 'GI', GPIO_OUT: 'GO',
+        SEVENSEG: 'HEX', PROBE: 'MON', BUFFER: 'BUF', NOT: 'INV', AND: 'AND',
+        NAND: 'NAND', OR: 'OR', NOR: 'NOR', XOR: 'XOR', XNOR: 'XNOR',
+        MUX: 'MUX', DEMUX: 'DMUX', DECODER: 'DEC', ENCODER: 'ENC',
+        ADDER: 'ADD', COMPARATOR: 'CMP', SRLATCH: 'SR', DFF: 'DFF',
+        JKFF: 'JKFF', TFF: 'TFF', COUNTER: 'CNT', SHIFTREG: 'SRG', REGISTER: 'REG'
+    };
+    return map[type] || 'U';
+}
+
+function createComponent(type, x, y, customLabel = null, customOptions = null, probed = false) {
+    const snapX = Math.round(x / GRID_SIZE) * GRID_SIZE;
+    const snapY = Math.round(y / GRID_SIZE) * GRID_SIZE;
+    const count = state.components.filter(c => c.type === type).length + 1;
+    const options = Object.assign(getDefaultOptions(type), customOptions || {});
+
+    const comp = {
+        id: generateId('c'),
+        type, x: snapX, y: snapY,
+        label: customLabel || `${getDefaultLabelPrefix(type)}${count}`,
+        options,
+        internalState: {
+            value: type === 'CONST' ? (options.constVal ? 1 : 0) : (options.initialState ? 1 : 0),
+            q: 0, prevClk: 0, count: 0, regVal: 0, phaseAcc: 0
+        },
+        probed
+    };
+
+    buildComponentGeometry(comp);
+    state.components.push(comp);
+    evaluateCircuit();
+    return comp;
+}
+
+function addWire(fromCompId, fromPinIdx, toCompId, toPinIdx, probed = false) {
+    if (fromCompId === toCompId) return null;
+    state.wires = state.wires.filter(w => !(w.toCompId === toCompId && w.toPinIdx === toPinIdx));
+    const wire = { id: generateId('w'), fromCompId, fromPinIdx, toCompId, toPinIdx, value: 0, probed };
+    state.wires.push(wire);
+    evaluateCircuit();
+    return wire;
+}
+
+function evaluateComponentLogic(comp, isClockStep) {
+    const opt = comp.options;
+    const st = comp.internalState;
+    const ins = comp.inputValues;
+
+    switch (comp.type) {
+        case 'SWITCH':
+        case 'GPIO_IN':
+            return [st.value ? 1 : 0];
+        case 'BUTTON':
+            return [(opt.activeLow ? !st.value : st.value) ? 1 : 0];
+        case 'CONST':
+            return [opt.constVal ? 1 : 0];
+        case 'CLOCK':
+            return [st.value ? 1 : 0];
+        case 'LED':
+        case 'GPIO_OUT':
+        case 'SEVENSEG':
+        case 'PROBE':
+            return [];
+        case 'BUFFER':
+            return [ins[0] ? 1 : 0];
+        case 'NOT':
+            return [ins[0] ? 0 : 1];
+        case 'AND':
+        case 'NAND':
+        case 'OR':
+        case 'NOR':
+        case 'XOR':
+        case 'XNOR':
+            const mask = opt.invertInputsMask || 0;
+            const eff = ins.map((v, idx) => ((mask >> idx) & 1) ? (v ? 0 : 1) : (v ? 1 : 0));
+            let res = 0;
+            if (comp.type === 'AND' || comp.type === 'NAND') {
+                res = eff.every(v => v === 1) ? 1 : 0;
+                if (comp.type === 'NAND') res ^= 1;
+            } else if (comp.type === 'OR' || comp.type === 'NOR') {
+                res = eff.some(v => v === 1) ? 1 : 0;
+                if (comp.type === 'NOR') res ^= 1;
+            } else if (comp.type === 'XOR' || comp.type === 'XNOR') {
+                res = eff.reduce((acc, v) => acc ^ v, 0);
+                if (comp.type === 'XNOR') res ^= 1;
+            }
+            return [res];
+        case 'MUX':
+            const ch = opt.channels || 4;
+            const selBits = Math.log2(ch);
+            let sel = 0;
+            for (let s = 0; s < selBits; s++) sel |= ((ins[ch + s] || 0) << s);
+            return [ins[sel] ? 1 : 0];
+        case 'DEMUX':
+            const dCh = opt.channels || 4;
+            const dSelBits = Math.log2(dCh);
+            const din = ins[0] || 0;
+            let dSel = 0;
+            for (let s = 0; s < dSelBits; s++) dSel |= ((ins[1 + s] || 0) << s);
+            const outs = new Array(dCh).fill(0);
+            outs[dSel] = din;
+            return outs;
+        case 'DECODER':
+            const decBits = opt.inBits || 2;
+            const outCount = 1 << decBits;
+            const hasEnable = opt.hasEnable !== false;
+            const en = hasEnable ? (ins[decBits] || 0) : 1;
+            const dOuts = new Array(outCount).fill(0);
+            if (en) {
+                let code = 0;
+                for (let i = 0; i < decBits; i++) code |= ((ins[i] || 0) << i);
+                dOuts[code] = 1;
+            }
+            return dOuts;
+        case 'ENCODER':
+            const encOutBits = opt.outBits || 2;
+            const encInCount = 1 << encOutBits;
+            let highest = -1;
+            for (let i = 0; i < encInCount; i++) if (ins[i]) highest = i;
+            const eOuts = new Array(encOutBits + 1).fill(0);
+            if (highest >= 0) {
+                for (let o = 0; o < encOutBits; o++) eOuts[o] = (highest >> o) & 1;
+                eOuts[encOutBits] = 1;
+            }
+            return eOuts;
+        case 'ADDER':
+            const addBits = opt.bits || 1;
+            let a = 0, b = 0;
+            for (let i = 0; i < addBits; i++) a |= ((ins[i] || 0) << i);
+            for (let i = 0; i < addBits; i++) b |= ((ins[addBits + i] || 0) << i);
+            const cin = ins[addBits * 2] || 0;
+            const sum = a + b + cin;
+            const aOuts = [];
+            for (let i = 0; i < addBits; i++) aOuts.push((sum >> i) & 1);
+            aOuts.push((sum >> addBits) & 1);
+            return aOuts;
+        case 'COMPARATOR':
+            const cmpBits = opt.bits || 2;
+            let ca = 0, cb = 0;
+            for (let i = 0; i < cmpBits; i++) ca |= ((ins[i] || 0) << i);
+            for (let i = 0; i < cmpBits; i++) cb |= ((ins[cmpBits + i] || 0) << i);
+            return [ca > cb ? 1 : 0, ca === cb ? 1 : 0, ca < cb ? 1 : 0];
+        case 'SRLATCH':
+            const gated = !!opt.gated;
+            const s = ins[0] || 0;
+            const ge = gated ? (ins[1] || 0) : 1;
+            const r = gated ? (ins[2] || 0) : (ins[1] || 0);
+            if (ge) {
+                if (s && !r) st.q = 1;
+                else if (!s && r) st.q = 0;
+                else if (s && r) st.q = 0;
+            }
+            return opt.showQBar !== false ? [st.q, st.q ? 0 : 1] : [st.q];
+        case 'DFF':
+        case 'JKFF':
+        case 'TFF':
+            const asyncSR = !!opt.asyncSR;
+            let idx = 0;
+            const pre = asyncSR ? (ins[idx++] || 0) : 0;
+            let d = 0, j = 0, k = 0, t = 0, clk = 0;
+            if (comp.type === 'DFF') { d = ins[idx++] || 0; clk = ins[idx++] || 0; }
+            else if (comp.type === 'JKFF') { j = ins[idx++] || 0; clk = ins[idx++] || 0; k = ins[idx++] || 0; }
+            else { t = ins[idx++] || 0; clk = ins[idx++] || 0; }
+            const clr = asyncSR ? (ins[idx++] || 0) : 0;
+
+            if (clr) st.q = 0;
+            else if (pre) st.q = 1;
+            else if (isClockStep) {
+                const triggered = opt.edge === 'FALLING' ? (clk === 0 && st.prevClk === 1) : (clk === 1 && st.prevClk === 0);
+                if (triggered) {
+                    if (comp.type === 'DFF') st.q = d;
+                    else if (comp.type === 'TFF') { if (t) st.q ^= 1; }
+                    else if (comp.type === 'JKFF') {
+                        if (j && !k) st.q = 1;
+                        else if (!j && k) st.q = 0;
+                        else if (j && k) st.q ^= 1;
+                    }
+                }
+            }
+            if (isClockStep) st.prevClk = clk;
+            return opt.showQBar !== false ? [st.q, st.q ? 0 : 1] : [st.q];
+        case 'COUNTER':
+            const cntBits = opt.bits || 4;
+            const maxVal = (1 << cntBits) - 1;
+            const clkIn = ins[0] || 0;
+            const enIn = ins[1] || 0;
+            const rstIn = ins[2] || 0;
+            if (opt.resetType === 'ASYNC' && rstIn) st.count = 0;
+            else if (isClockStep && clkIn === 1 && st.prevClk === 0) {
+                if (rstIn) st.count = 0;
+                else if (enIn) {
+                    st.count = opt.direction === 'DOWN' ? (st.count === 0 ? maxVal : st.count - 1) : ((st.count + 1) & maxVal);
+                }
+            }
+            if (isClockStep) st.prevClk = clkIn;
+            const cOuts = [];
+            for (let i = 0; i < cntBits; i++) cOuts.push((st.count >> i) & 1);
+            cOuts.push(opt.direction === 'DOWN' ? (st.count === 0 ? 1 : 0) : (st.count === maxVal ? 1 : 0));
+            return cOuts;
+        case 'SHIFTREG':
+            const srBits = opt.bits || 4;
+            const srMax = (1 << srBits) - 1;
+            const dinVal = ins[0] || 0;
+            const srClk = ins[1] || 0;
+            const srRst = ins[2] || 0;
+            if (srRst) st.regVal = 0;
+            else if (isClockStep && srClk === 1 && st.prevClk === 0) {
+                st.regVal = opt.direction === 'LEFT' ? ((st.regVal << 1) | dinVal) & srMax : ((st.regVal >> 1) | (dinVal << (srBits - 1))) & srMax;
+            }
+            if (isClockStep) st.prevClk = srClk;
+            const srOuts = [];
+            for (let i = 0; i < srBits; i++) srOuts.push((st.regVal >> i) & 1);
+            return srOuts;
+        case 'REGISTER':
+            const regBits = opt.bits || 4;
+            const load = ins[regBits] || 0;
+            const regClk = ins[regBits + 1] || 0;
+            const regRst = ins[regBits + 2] || 0;
+            if (regRst) st.regVal = 0;
+            else if (isClockStep && regClk === 1 && st.prevClk === 0 && load) {
+                let dVal = 0;
+                for (let i = 0; i < regBits; i++) dVal |= ((ins[i] || 0) << i);
+                st.regVal = dVal;
+            }
+            if (isClockStep) st.prevClk = regClk;
+            const regOuts = [];
+            for (let i = 0; i < regBits; i++) regOuts.push((st.regVal >> i) & 1);
+            return regOuts;
+    }
+    return [];
+}
+
+function evaluateCircuit() {
+    for (let iter = 0; iter < 6; iter++) {
+        for (const comp of state.components) comp.inputValues.fill(0);
+        for (const wire of state.wires) {
+            const src = state.components.find(c => c.id === wire.fromCompId);
+            const dst = state.components.find(c => c.id === wire.toCompId);
+            if (src && dst && wire.fromPinIdx < src.outputValues.length && wire.toPinIdx < dst.inputValues.length) {
+                const val = src.outputValues[wire.fromPinIdx] || 0;
+                wire.value = val;
+                dst.inputValues[wire.toPinIdx] = val;
+            }
+        }
+        for (const comp of state.components) {
+            comp.outputValues = evaluateComponentLogic(comp, iter === 0);
+        }
+    }
+}
+
+function advanceSimulationStep(dtSec = 0.05) {
+    state.tickCount++;
+    for (const comp of state.components) {
+        if (comp.type === 'CLOCK') {
+            const freq = comp.options.freq || 2.0;
+            const duty = (comp.options.duty || 50) / 100;
+            comp.internalState.phaseAcc = (comp.internalState.phaseAcc + freq * dtSec) % 1.0;
+            comp.internalState.value = comp.internalState.phaseAcc < duty ? 1 : 0;
+        }
+    }
+    evaluateCircuit();
+    recordWaveformSample();
+}
+
+function recordWaveformSample() {
+    const probed = getProbedSignals();
+    if (probed.length === 0) return;
+    const snap = {};
+    for (const item of probed) snap[item.key] = item.value;
+    state.waveformHistory.push(snap);
+    if (state.waveformHistory.length > state.maxWaveSamples) state.waveformHistory.shift();
+}
+
+function getProbedSignals() {
+    const list = [];
+    for (const comp of state.components) {
+        if (comp.probed) {
+            list.push({ key: comp.id, label: comp.label, value: comp.outputValues[0] || comp.inputValues[0] || 0, color: '#10b981' });
+        }
+    }
+    for (const wire of state.wires) {
+        if (wire.probed) {
+            const src = state.components.find(c => c.id === wire.fromCompId);
+            list.push({ key: wire.id, label: `${src?.label || 'Wire'}`, value: wire.value, color: '#f59e0b' });
+        }
+    }
+    return list;
+}
+
+function toggleSimulation() {
+    state.isRunning = !state.isRunning;
+    const btn = document.getElementById('btn-run-pause');
+    const text = document.getElementById('run-text');
+    const icon = document.getElementById('run-icon');
+    if (state.isRunning) {
+        btn.className = "tool-btn flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm";
+        text.textContent = "Running";
+        icon.innerHTML = `<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>`;
+    } else {
+        btn.className = "tool-btn flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white shadow-sm";
+        text.textContent = "Paused";
+        icon.innerHTML = `<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/></svg>`;
+    }
+}
+
+function stepSimulation() {
+    if (state.isRunning) toggleSimulation();
+    advanceSimulationStep(0.25);
+    showToast('Stepped 1 tick');
+}
+
+document.getElementById('clock-speed-slider').addEventListener('input', (e) => {
+    const _old = state.clockFreqHz;
+    state.clockFreqHz = parseInt(e.target.value, 10) * 0.5;
+    document.getElementById('clock-speed-label').textContent = `${state.clockFreqHz.toFixed(1)} Hz`;
+    for (const c of state.components) if (c.type === 'CLOCK') c.options.freq = Math.min(20, Math.max(0.5, +((c.options.freq || 2) * state.clockFreqHz / _old).toFixed(2)));
+});
+
+// --- Component Inspector Panel UI ---
+function extraInspector(comp, opt, sel, tog) {
+    let h = ''; const o = (v, t) => ({ val: v, text: t });
+    const ff = ['DFF', 'JKFF', 'TFF'];
+    if (comp.type === 'CLOCK') { const fs = [0.5, 1, 2, 4, 5, 8, 10, 20]; if (!fs.includes(+opt.freq)) fs.push(+opt.freq); fs.sort((a, b) => a - b); h += sel('freq', 'Frequency', fs.map(v => o(v, v + ' Hz'))); }
+    else if (comp.type === 'SWITCH') h += sel('mode', 'Mode', [o('TOGGLE', 'Toggle'), o('MOMENTARY', 'Momentary')]);
+    else if (comp.type === 'BUTTON') h += tog('activeLow', 'Active-low (idle 1, pressed 0)');
+    else if (comp.type === 'CONST') h += sel('constVal', 'Value', [o(0, 'Logic 0'), o(1, 'Logic 1')]);
+    else if (comp.type === 'LED') h += tog('activeLow', 'Active-low');
+    else if (comp.type === 'GPIO_IN') h += sel('pin', 'ESP32 pin', gpioBridge.pinChoices('GPIO_IN', opt.pin)) + sel('pull', 'Pull resistor (GPIO 32 and below)', [o('NONE', 'None'), o('UP', 'Pull-up'), o('DOWN', 'Pull-down')]) + tog('invert', 'Invert (active-low)');
+    else if (comp.type === 'GPIO_OUT') h += sel('pin', 'ESP32 pin', gpioBridge.pinChoices('GPIO_OUT', opt.pin)) + tog('invert', 'Invert (active-low)');
+    else if (comp.type === 'SEVENSEG') h += sel('mode', 'Input mode', [o('BCD', 'BCD / hex (4-bit)'), o('RAW', 'Raw 7-pin (a–g)')]) + sel('color', 'Color', [o('#f43f5e', 'Red'), o('#10b981', 'Green'), o('#06b6d4', 'Cyan'), o('#f59e0b', 'Amber')]);
+    else if (comp.type === 'PROBE') h += sel('bits', 'Bus width', [o(1, '1-bit'), o(4, '4-bit'), o(8, '8-bit')]);
+    else if (comp.type === 'DECODER') h += sel('inBits', 'Size', [o(2, '2:4'), o(3, '3:8')]) + tog('hasEnable', 'Enable pin');
+    else if (comp.type === 'ENCODER') h += sel('outBits', 'Size', [o(2, '4:2'), o(3, '8:3')]);
+    else if (comp.type === 'SRLATCH') h += tog('gated', 'Gated (EN pin)') + tog('showQBar', 'Show Q̄');
+    else if (ff.includes(comp.type)) h += sel('edge', 'Clock edge', [o('RISING', 'Rising'), o('FALLING', 'Falling')]) + tog('asyncSR', 'Async PRE/CLR pins') + tog('showQBar', 'Show Q̄');
+    else if (comp.type === 'COUNTER') h += sel('resetType', 'Reset', [o('ASYNC', 'Asynchronous'), o('SYNC', 'Synchronous')]);
+    else if (comp.type === 'SHIFTREG') h += sel('direction', 'Direction', [o('RIGHT', 'Shift right'), o('LEFT', 'Shift left')]);
+    if (['SWITCH', 'BUTTON', 'LED'].includes(comp.type) && window.gpioBridge) {
+        const isOut = comp.type === 'LED', bound = gpioBridge.boundPin(comp) !== null;
+        h += sel('gpio', isOut ? 'ESP32 output pin' : 'ESP32 input pin', [o('NONE', 'None (simulated only)')].concat(gpioBridge.pinChoices(isOut ? 'GPIO_OUT' : 'GPIO_IN', opt.gpio)));
+        if (bound) {
+            if (!isOut) h += sel('gpioPull', 'Pull resistor (GPIO 32 and below)', [o('NONE', 'None'), o('UP', 'Pull-up'), o('DOWN', 'Pull-down')]);
+            h += tog('gpioInv', 'Invert pin level');
+        }
+    }
+    return h;
+}
+
+function renderInspectorPanel() {
+    const emptyEl = document.getElementById('inspector-empty');
+    const contentEl = document.getElementById('inspector-content');
+    const badgeEl = document.getElementById('inspector-type-badge');
+    const dynContainer = document.getElementById('insp-dynamic-options');
+
+    const comp = state.components.find(c => c.id === state.selectedCompId);
+    if (!comp) {
+        emptyEl.classList.remove('hidden');
+        contentEl.classList.add('hidden');
+        badgeEl.textContent = 'NONE';
+        return;
+    }
+
+    emptyEl.classList.add('hidden');
+    contentEl.classList.remove('hidden');
+    badgeEl.textContent = comp.type;
+    document.getElementById('insp-label').value = comp.label;
+    document.getElementById('insp-probe').checked = !!comp.probed;
+
+    const opt = comp.options;
+    let html = '';
+
+    const renderSelect = (key, label, choices) => `
+        <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
+            <label class="block text-[11px] font-medium text-slate-400 mb-1">${label}</label>
+            <select onchange="updateCompOption('${key}', isNaN(this.value) ? this.value : Number(this.value))"
+                class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-100 font-mono focus:outline-none focus:border-amber-500">
+                ${choices.map(c => `<option value="${c.val}" ${opt[key] == c.val ? 'selected' : ''}>${c.text}</option>`).join('')}
+            </select>
+        </div>
+    `;
+
+    const renderToggle = (key, label) => `
+        <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800 flex items-center justify-between">
+            <span class="text-[11px] font-medium text-slate-300">${label}</span>
+            <input type="checkbox" ${opt[key] ? 'checked' : ''} onchange="updateCompOption('${key}', this.checked)" class="accent-amber-500 w-4 h-4 cursor-pointer rounded">
+        </div>
+    `;
+
+    switch (comp.type) {
+        case 'MUX':
+            html += renderSelect('channels', 'MUX Channels', [{ val: 2, text: '2-to-1' }, { val: 4, text: '4-to-1' }, { val: 8, text: '8-to-1' }]);
+            break;
+        case 'DEMUX':
+            html += renderSelect('channels', 'DEMUX Outputs', [{ val: 2, text: '1-to-2' }, { val: 4, text: '1-to-4' }, { val: 8, text: '1-to-8' }]);
+            break;
+        case 'AND':
+        case 'NAND':
+        case 'OR':
+        case 'NOR':
+        case 'XOR':
+        case 'XNOR':
+            html += renderSelect('numInputs', 'Number of Inputs', [{ val: 2, text: '2 Inputs' }, { val: 3, text: '3 Inputs' }, { val: 4, text: '4 Inputs' }, { val: 5, text: '5 Inputs' }, { val: 6, text: '6 Inputs' }, { val: 7, text: '7 Inputs' }, { val: 8, text: '8 Inputs' }]);
+            break;
+        case 'COUNTER':
+            html += renderSelect('bits', 'Counter Bits', [{ val: 2, text: '2-Bit' }, { val: 3, text: '3-Bit' }, { val: 4, text: '4-Bit' }, { val: 8, text: '8-Bit' }]);
+            html += renderSelect('direction', 'Direction', [{ val: 'UP', text: 'Count Up' }, { val: 'DOWN', text: 'Count Down' }]);
+            break;
+        case 'SHIFTREG':
+        case 'REGISTER':
+            html += renderSelect('bits', 'Bit Width', [{ val: 2, text: '2-Bit' }, { val: 4, text: '4-Bit' }, { val: 8, text: '8-Bit' }]);
+            break;
+        case 'ADDER':
+        case 'COMPARATOR':
+            html += renderSelect('bits', 'Bit Width', [{ val: 1, text: '1-Bit' }, { val: 2, text: '2-Bit' }, { val: 4, text: '4-Bit' }]);
+            break;
+        case 'LED':
+            html += renderSelect('color', 'LED Color', [{ val: '#10b981', text: 'Green' }, { val: '#f43f5e', text: 'Red' }, { val: '#06b6d4', text: 'Cyan' }, { val: '#f59e0b', text: 'Amber' }]);
+            break;
+    }
+
+    html += extraInspector(comp, opt, renderSelect, renderToggle);
+    dynContainer.innerHTML = html;
+}
+
+function updateCompOption(key, val) {
+    const comp = state.components.find(c => c.id === state.selectedCompId);
+    if (!comp) return;
+    if (key === 'label') { comp.label = val || 'U1'; return; }
+    if (key === 'probed') { comp.probed = val; return; }
+    comp.options[key] = val;
+    buildComponentGeometry(comp);
+    evaluateCircuit();
+    renderInspectorPanel();
+}
+
+function duplicateSelected() {
+    const comp = state.components.find(c => c.id === state.selectedCompId);
+    if (!comp) return;
+    const copy = createComponent(comp.type, comp.x + 40, comp.y + 40, null, JSON.parse(JSON.stringify(comp.options)), comp.probed);
+    state.selectedCompId = copy.id;
+    renderInspectorPanel();
+}
+
+function deselectAll() {
+    state.selectedCompId = null;
+    state.selectedWireId = null;
+    state.wiringStartPin = null;
+    if (state.activeSidebar === 'inspector') closeAllSidebars();
+}
+
+function deleteSelected() {
+    if (state.selectedCompId) {
+        const id = state.selectedCompId;
+        state.components = state.components.filter(c => c.id !== id);
+        state.wires = state.wires.filter(w => w.fromCompId !== id && w.toCompId !== id);
+        deselectAll();
+        showToast('Component deleted');
+    } else if (state.selectedWireId) {
+        state.wires = state.wires.filter(w => w.id !== state.selectedWireId);
+        state.selectedWireId = null;
+        showToast('Wire deleted');
+    }
+}
+
+function confirmClearCanvas() {
+    document.getElementById('confirm-modal').classList.remove('hidden');
+}
+function closeConfirmModal() {
+    document.getElementById('confirm-modal').classList.add('hidden');
+}
+function executeClearCanvas() {
+    state.components = [];
+    state.wires = [];
+    state.waveformHistory = [];
+    deselectAll();
+    closeConfirmModal();
+    showToast('Canvas cleared');
+}
+
+// --- Canvas Controls & Rendering ---
+function screenToWorld(sx, sy) {
+    return { x: (sx - state.pan.x) / state.zoom, y: (sy - state.pan.y) / state.zoom };
+}
+
+function zoomCanvas(delta) {
+    state.zoom = Math.min(2.0, Math.max(0.4, +(state.zoom + delta).toFixed(2)));
+    document.getElementById('zoom-level').textContent = `${Math.round(state.zoom * 100)}%`;
+}
+
+function resetView() {
+    state.pan = { x: 0, y: 0 };
+    state.zoom = 1.0;
+    document.getElementById('zoom-level').textContent = '100%';
+}
+
+function getPinAt(wx, wy) {
+    for (let i = state.components.length - 1; i >= 0; i--) {
+        const comp = state.components[i];
+        for (let p = 0; p < comp.outputs.length; p++) {
+            const px = comp.x + comp.outputs[p].dx, py = comp.y + comp.outputs[p].dy;
+            if (Math.hypot(wx - px, wy - py) <= 10) return { compId: comp.id, pinType: 'out', pinIndex: p, x: px, y: py };
+        }
+        for (let p = 0; p < comp.inputs.length; p++) {
+            const px = comp.x + comp.inputs[p].dx, py = comp.y + comp.inputs[p].dy;
+            if (Math.hypot(wx - px, wy - py) <= 10) return { compId: comp.id, pinType: 'in', pinIndex: p, x: px, y: py };
+        }
+    }
+    return null;
+}
+
+function getComponentAt(wx, wy) {
+    for (let i = state.components.length - 1; i >= 0; i--) {
+        const comp = state.components[i];
+        if (Math.abs(wx - comp.x) <= comp.w / 2 && Math.abs(wy - comp.y) <= comp.h / 2) return comp;
+    }
+    return null;
+}
+
+function getWireEndpoints(wire) {
+    const src = state.components.find(c => c.id === wire.fromCompId);
+    const dst = state.components.find(c => c.id === wire.toCompId);
+    if (!src || !dst) return null;
+    const srcPin = src.outputs[wire.fromPinIdx], dstPin = dst.inputs[wire.toPinIdx];
+    if (!srcPin || !dstPin) return null;
+    return { x1: src.x + srcPin.dx, y1: src.y + srcPin.dy, x2: dst.x + dstPin.dx, y2: dst.y + dstPin.dy };
+}
+
+function getWireAt(wx, wy) {
+    for (let i = state.wires.length - 1; i >= 0; i--) {
+        const wire = state.wires[i];
+        const pts = getWireEndpoints(wire);
+        if (!pts) continue;
+        const cp = Math.max(40, Math.abs(pts.x2 - pts.x1) * 0.45);
+        for (let t = 0; t <= 1; t += 0.05) {
+            const mt = 1 - t;
+            const bx = mt*mt*mt*pts.x1 + 3*mt*mt*t*(pts.x1 + cp) + 3*mt*t*t*(pts.x2 - cp) + t*t*t*pts.x2;
+            const by = mt*mt*mt*pts.y1 + 3*mt*mt*t*pts.y1 + 3*mt*t*t*pts.y2 + t*t*t*pts.y2;
+            if (Math.hypot(wx - bx, wy - by) < 9) return wire;
+        }
+    }
+    return null;
+}
+
+// Event Listeners
+function getEventPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return { sx: clientX - rect.left, sy: clientY - rect.top };
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+    const { sx, sy } = getEventPos(e);
+    const { x: wx, y: wy } = screenToWorld(sx, sy);
+    state.mousePos = { x: wx, y: wy };
+
+    if (e.button === 1 || e.altKey) {
+        state.isPanning = true;
+        state.panStart = { x: sx - state.pan.x, y: sy - state.pan.y };
+        return;
+    }
+
+    if (state.selectedTool) {
+        const comp = createComponent(state.selectedTool, wx, wy);
+        if (comp) {
+            state.selectedCompId = comp.id;
+            if (state.activeSidebar === 'inspector') renderInspectorPanel();
+        }
+        if (!e.shiftKey) selectTool(null);
+        return;
+    }
+
+    const pin = getPinAt(wx, wy);
+    if (pin) {
+        if (!state.wiringStartPin) {
+            state.wiringStartPin = pin;
+        } else {
+            if (state.wiringStartPin.pinType === 'out' && pin.pinType === 'in') {
+                addWire(state.wiringStartPin.compId, state.wiringStartPin.pinIndex, pin.compId, pin.pinIndex);
+            } else if (state.wiringStartPin.pinType === 'in' && pin.pinType === 'out') {
+                addWire(pin.compId, pin.pinIndex, state.wiringStartPin.compId, state.wiringStartPin.pinIndex);
+            }
+            state.wiringStartPin = null;
+        }
+        return;
+    }
+
+    const comp = getComponentAt(wx, wy);
+    if (comp) {
+        state.selectedCompId = comp.id;
+        state.selectedWireId = null;
+        if (state.activeSidebar === 'inspector') renderInspectorPanel();
+        if (comp.type === 'SWITCH' && comp.options.mode === 'MOMENTARY') {
+            comp.internalState.value = 1; comp._isPressed = true; evaluateCircuit();
+        } else if (comp.type === 'SWITCH') {
+            comp.internalState.value = comp.internalState.value ? 0 : 1;
+            evaluateCircuit();
+        } else if (comp.type === 'GPIO_IN' && !(window.gpioBridge && gpioBridge.connected)) {
+            comp.internalState.value = comp.internalState.value ? 0 : 1;
+            evaluateCircuit();
+        } else if (comp.type === 'BUTTON') {
+            comp.internalState.value = 1;
+            comp._isPressed = true;
+            evaluateCircuit();
+        }
+        state.draggingCompId = comp.id;
+        state.dragOffset = { x: wx - comp.x, y: wy - comp.y };
+        return;
+    }
+
+    const wire = getWireAt(wx, wy);
+    if (wire) {
+        state.selectedWireId = wire.id;
+        state.selectedCompId = null;
+        return;
+    }
+
+    deselectAll();
+    state.isPanning = true;
+    state.panStart = { x: sx - state.pan.x, y: sy - state.pan.y };
+});
+
+canvas.addEventListener('pointermove', (e) => {
+    const { sx, sy } = getEventPos(e);
+    const { x: wx, y: wy } = screenToWorld(sx, sy);
+    state.mousePos = { x: wx, y: wy };
+    if (state.isPanning) {
+        state.pan.x = sx - state.panStart.x;
+        state.pan.y = sy - state.panStart.y;
+        return;
+    }
+    if (state.draggingCompId) {
+        const comp = state.components.find(c => c.id === state.draggingCompId);
+        if (comp) {
+            comp.x = Math.round((wx - state.dragOffset.x) / GRID_SIZE) * GRID_SIZE;
+            comp.y = Math.round((wy - state.dragOffset.y) / GRID_SIZE) * GRID_SIZE;
+        }
+        return;
+    }
+    state.hoveredPin = getPinAt(wx, wy);
+});
+
+window.addEventListener('pointerup', () => {
+    state.isPanning = false;
+    state.draggingCompId = null;
+    for (const comp of state.components) {
+        if (comp._isPressed) {
+            comp._isPressed = false;
+            if (comp.type === 'BUTTON' || comp.type === 'SWITCH') { comp.internalState.value = 0; evaluateCircuit(); }
+        }
+    }
+});
+
+canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    const { sx, sy } = getEventPos(e);
+    const { x: wx, y: wy } = screenToWorld(sx, sy);
+    const wire = getWireAt(wx, wy);
+    if (wire) { wire.probed = !wire.probed; showToast(wire.probed ? 'Wire probed' : 'Probe removed'); return; }
+    const comp = getComponentAt(wx, wy);
+    if (comp) { comp.probed = !comp.probed; showToast(comp.probed ? `Probing ${comp.label}` : `Probe removed`); }
+});
+
+canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    zoomCanvas(e.deltaY < 0 ? 0.1 : -0.1);
+}, { passive: false });
+
+window.addEventListener('keydown', (e) => {
+    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+    if (e.key === 'Delete' || e.key === 'Backspace') deleteSelected();
+    else if (e.key === 'Escape') { selectTool(null); deselectAll(); closeAllSidebars(); }
+    else if (e.key === ' ') { e.preventDefault(); toggleSimulation(); }
+});
+
+// Render Loop
+function drawGrid() {
+    ctx.fillStyle = '#080d17';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.translate(state.pan.x, state.pan.y);
+    ctx.scale(state.zoom, state.zoom);
+    const startX = Math.floor(-state.pan.x / state.zoom / GRID_SIZE) * GRID_SIZE - GRID_SIZE;
+    const startY = Math.floor(-state.pan.y / state.zoom / GRID_SIZE) * GRID_SIZE - GRID_SIZE;
+    ctx.fillStyle = '#1e293b';
+    for (let x = startX; x < startX + (canvas.width / state.zoom) + GRID_SIZE * 2; x += GRID_SIZE) {
+        for (let y = startY; y < startY + (canvas.height / state.zoom) + GRID_SIZE * 2; y += GRID_SIZE) {
+            ctx.fillRect(x - 1, y - 1, 2, 2);
+        }
+    }
+    ctx.restore();
+}
+
+function drawWires() {
+    for (const wire of state.wires) {
+        const pts = getWireEndpoints(wire);
+        if (!pts) continue;
+        const isHigh = wire.value === 1;
+        const cp = Math.max(40, Math.abs(pts.x2 - pts.x1) * 0.45);
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(pts.x1, pts.y1);
+        ctx.bezierCurveTo(pts.x1 + cp, pts.y1, pts.x2 - cp, pts.y2, pts.x2, pts.y2);
+        ctx.strokeStyle = wire.id === state.selectedWireId ? '#f59e0b' : (isHigh ? '#10b981' : '#475569');
+        ctx.lineWidth = isHigh ? 3 : 2.2;
+        ctx.stroke();
+        ctx.restore();
+    }
+}
+
+function drawComponents() {
+    for (const comp of state.components) {
+        const isSel = comp.id === state.selectedCompId;
+        const x = comp.x - comp.w / 2, y = comp.y - comp.h / 2;
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(x, y, comp.w, comp.h, 8);
+        ctx.fillStyle = '#0f172a';
+        ctx.fill();
+        ctx.lineWidth = isSel ? 2.4 : 1.5;
+        ctx.strokeStyle = isSel ? '#f59e0b' : '#334155';
+        ctx.stroke();
+
+        drawComponentInternals(comp);
+        drawPinNames(comp);
+
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '600 10px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(comp.label, comp.x, y - 5);
+        if (window.gpioBridge) {
+            const bp = gpioBridge.boundPin(comp);
+            if (bp !== null) {
+                ctx.fillStyle = gpioBridge.pinOk(comp.type === 'LED' ? 'GPIO_OUT' : 'GPIO_IN', bp) ? '#22d3ee' : '#f59e0b';
+                ctx.font = '600 9px "JetBrains Mono", monospace';
+                ctx.fillText('GPIO' + bp, comp.x, y + comp.h + 12);
+            }
+        }
+
+        comp.inputs.forEach((pin, idx) => {
+            const px = comp.x + pin.dx, py = comp.y + pin.dy;
+            const val = comp.inputValues[idx] || 0;
+            ctx.beginPath();
+            ctx.arc(px, py, 4, 0, Math.PI * 2);
+            ctx.fillStyle = val ? '#10b981' : '#1e293b';
+            ctx.fill();
+            ctx.strokeStyle = val ? '#6ee7b7' : '#64748b';
+            ctx.stroke();
+        });
+
+        comp.outputs.forEach((pin, idx) => {
+            const px = comp.x + pin.dx, py = comp.y + pin.dy;
+            const val = comp.outputValues[idx] || 0;
+            ctx.beginPath();
+            ctx.arc(px, py, 4, 0, Math.PI * 2);
+            ctx.fillStyle = val ? '#10b981' : '#1e293b';
+            ctx.fill();
+            ctx.strokeStyle = val ? '#6ee7b7' : '#94a3b8';
+            ctx.stroke();
+        });
+        ctx.restore();
+    }
+}
+
+const SEG_HEX = [0x3F,0x06,0x5B,0x4F,0x66,0x6D,0x7D,0x07,0x7F,0x6F,0x77,0x7C,0x39,0x5E,0x79,0x71];
+function drawSevenSeg(comp) {
+    const iv = comp.inputValues;
+    let mask = 0;
+    if (comp.options.mode === 'RAW') { for (let i = 0; i < 7; i++) mask |= ((iv[i] ? 1 : 0) << i); }
+    else { const v = (iv[0] ? 1 : 0) | (iv[1] ? 2 : 0) | (iv[2] ? 4 : 0) | (iv[3] ? 8 : 0); mask = SEG_HEX[v]; }
+    const cx = comp.x + 4, cy = comp.y, W = 36, H = 70, t = 6, on = comp.options.color || '#f43f5e';
+    const segs = [
+        [cx - W / 2 + 4, cy - H / 2, W - 8, t],           // a
+        [cx + W / 2 - t, cy - H / 2 + 5, t, 28],          // b
+        [cx + W / 2 - t, cy + 3, t, 28],                  // c
+        [cx - W / 2 + 4, cy + H / 2 - t, W - 8, t],       // d
+        [cx - W / 2, cy + 3, t, 28],                      // e
+        [cx - W / 2, cy - H / 2 + 5, t, 28],              // f
+        [cx - W / 2 + 4, cy - t / 2, W - 8, t]            // g
+    ];
+    segs.forEach((r, i) => {
+        const lit = (mask >> i) & 1;
+        ctx.save();
+        ctx.beginPath(); ctx.roundRect(r[0], r[1], r[2], r[3], 3);
+        ctx.fillStyle = lit ? on : '#1e293b';
+        if (lit) { ctx.shadowColor = on; ctx.shadowBlur = 8; }
+        ctx.fill();
+        ctx.restore();
+    });
+}
+
+// ---- pin names written inside every component (inputs on the left, outputs on the right)
+const PIN_FONT = '600 9px "JetBrains Mono", monospace';
+function pinNameExtent(comp) {
+    ctx.save(); ctx.font = PIN_FONT;
+    let l = 0, r = 0;
+    for (const p of comp.inputs) l = Math.max(l, ctx.measureText(p.name).width);
+    for (const p of comp.outputs) r = Math.max(r, ctx.measureText(p.name).width);
+    ctx.restore();
+    return { l, r };
+}
+function drawPinNames(comp) {
+    if (state.zoom < 0.55) return;   // too small to read
+    ctx.save();
+    ctx.font = PIN_FONT; ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    comp.inputs.forEach((p, i) => {
+        ctx.fillStyle = comp.inputValues[i] ? '#6ee7b7' : '#94a3b8';
+        ctx.fillText(p.name, comp.x + p.dx + 9, comp.y + p.dy);
+    });
+    ctx.textAlign = 'right';
+    comp.outputs.forEach((p, i) => {
+        ctx.fillStyle = comp.outputValues[i] ? '#6ee7b7' : '#94a3b8';
+        ctx.fillText(p.name, comp.x + p.dx - 9, comp.y + p.dy);
+    });
+    ctx.restore();
+}
+
+function drawComponentInternals(comp) {
+    const val = comp.outputValues[0] || 0;
+    if (comp.type === 'SWITCH') {
+        ctx.beginPath(); ctx.roundRect(comp.x - 16, comp.y - 8, 32, 16, 8);
+        ctx.fillStyle = val ? '#059669' : '#1e293b'; ctx.fill();
+        ctx.beginPath(); ctx.arc(val ? comp.x + 8 : comp.x - 8, comp.y, 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff'; ctx.fill();
+    } else if (comp.type === 'LED') {
+        const isOn = comp.options.activeLow ? (comp.inputValues[0] === 0) : (comp.inputValues[0] === 1);
+        ctx.beginPath(); ctx.arc(comp.x + 4, comp.y, 12, 0, Math.PI * 2);
+        ctx.fillStyle = isOn ? (comp.options.color || '#10b981') : '#1e293b';
+        ctx.fill();
+        ctx.strokeStyle = isOn ? '#fff' : '#475569'; ctx.stroke();
+    } else if (comp.type === 'GPIO_IN' || comp.type === 'GPIO_OUT') {
+        const isIn = comp.type === 'GPIO_IN', lvl = isIn ? val : (comp.inputValues[0] ? 1 : 0);
+        const bad = window.gpioBridge && !gpioBridge.pinOk(comp.type, +comp.options.pin);
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = bad ? '#f59e0b' : '#e2e8f0'; ctx.font = 'bold 10.5px "JetBrains Mono"';
+        ctx.fillText(`GPIO${comp.options.pin}`, comp.x, comp.y - 7);
+        ctx.fillStyle = isIn ? '#22d3ee' : '#fbbf24'; ctx.font = '600 8.5px "JetBrains Mono"';
+        ctx.fillText(isIn ? 'IN' : 'OUT', comp.x - 10, comp.y + 9);
+        ctx.beginPath(); ctx.arc(comp.x + 10, comp.y + 9, 4, 0, Math.PI * 2);
+        ctx.fillStyle = lvl ? '#10b981' : '#1e293b'; ctx.fill(); ctx.strokeStyle = lvl ? '#6ee7b7' : '#64748b'; ctx.stroke();
+        ctx.textBaseline = 'alphabetic';
+    } else if (comp.type === 'PROBE') {
+        let bVal = 0;
+        for (let i = 0; i < (comp.options.bits || 4); i++) bVal |= ((comp.inputValues[i] || 0) << i);
+        ctx.fillStyle = '#06b6d4'; ctx.font = 'bold 12px "JetBrains Mono"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(`0x${bVal.toString(16).toUpperCase()}`, comp.x + 6, comp.y);
+        ctx.textBaseline = 'alphabetic';
+    } else if (comp.type === 'SEVENSEG') {
+        drawSevenSeg(comp);
+    } else {
+        const ext = pinNameExtent(comp);
+        const freeL = comp.x - comp.w / 2 + 9 + ext.l + 6, freeR = comp.x + comp.w / 2 - 9 - ext.r - 6;
+        ctx.fillStyle = '#e2e8f0'; ctx.font = 'bold 10.5px "JetBrains Mono"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        if (ctx.measureText(comp.type).width <= freeR - freeL) {
+            ctx.fillText(comp.type, (freeL + freeR) / 2, comp.y);
+        } else {
+            ctx.font = 'bold 9px "JetBrains Mono"';
+            ctx.fillText(comp.type, comp.x, comp.y - comp.h / 2 + 8);
+        }
+        ctx.textBaseline = 'alphabetic';
+    }
+}
+
+function drawLogicAnalyzer() {
+    const container = document.getElementById('waveform-container');
+    if (!container || container.offsetParent === null) return;
+    waveCanvas.width = container.clientWidth; waveCanvas.height = container.clientHeight;
+    const w = waveCanvas.width, h = waveCanvas.height;
+    waveCtx.fillStyle = '#080d17'; waveCtx.fillRect(0, 0, w, h);
+
+    const channels = getProbedSignals();
+    document.getElementById('analyzer-channels').innerHTML = channels.map(ch => `
+        <div class="flex items-center justify-between px-2 py-1 rounded bg-slate-900 border border-slate-800 text-[11px] font-mono">
+            <span class="truncate text-slate-200">${escHtml(ch.label)}</span>
+            <span class="${ch.value ? 'text-emerald-400' : 'text-slate-400'}">${ch.value}</span>
+        </div>
+    `).join('') || '<div class="text-[11px] text-slate-500 p-2 text-center">No probed items</div>';
+
+    if (channels.length === 0) return;
+    const rowH = Math.min(34, (h - 8) / channels.length);
+    const stepX = w / state.maxWaveSamples;
+
+    channels.forEach((ch, idx) => {
+        const topY = idx * rowH + 5, botY = (idx + 1) * rowH - 5;
+        waveCtx.strokeStyle = ch.color; waveCtx.lineWidth = 2; waveCtx.beginPath();
+        state.waveformHistory.forEach((sample, sIdx) => {
+            const v = sample[ch.key] ?? 0;
+            const x = sIdx * stepX, y = v ? topY : botY;
+            if (sIdx === 0) waveCtx.moveTo(x, y);
+            else { waveCtx.lineTo(x, (state.waveformHistory[sIdx-1][ch.key] ?? 0) ? topY : botY); waveCtx.lineTo(x, y); }
+        });
+        waveCtx.stroke();
+    });
+}
+
+function clearWaveformHistory() { state.waveformHistory = []; showToast('Waveforms cleared'); }
+
+function generateTruthTable() {
+    const container = document.getElementById('truth-table-container');
+    const inputs = state.components.filter(c => c.type === 'SWITCH' || c.type === 'BUTTON');
+    const outputs = state.components.filter(c => c.type === 'LED' || c.type === 'SEVENSEG' || c.type === 'PROBE');
+    if (inputs.length === 0 || outputs.length === 0) {
+        container.innerHTML = `<div class="p-4 text-center text-xs text-slate-400">Place input switches and output probes/LEDs.</div>`;
+        return;
+    }
+    const rows = 1 << inputs.length;
+    let html = `<table class="w-full text-center font-mono text-xs border-collapse"><thead><tr class="bg-slate-900 text-slate-300">`;
+    inputs.forEach(i => html += `<th class="py-2 px-2 text-emerald-400">${i.label}</th>`);
+    html += `<th class="w-px bg-slate-700"></th>`;
+    outputs.forEach(o => html += `<th class="py-2 px-2 text-cyan-400">${o.label}</th>`);
+    html += `</tr></thead><tbody class="divide-y divide-slate-800">`;
+
+    const saved = inputs.map(i => i.internalState.value);
+    for (let r = 0; r < rows; r++) {
+        inputs.forEach((inp, idx) => inp.internalState.value = (r >> (inputs.length - 1 - idx)) & 1);
+        evaluateCircuit();
+        html += `<tr>`;
+        inputs.forEach(i => html += `<td class="py-1 px-2 text-emerald-300">${i.internalState.value}</td>`);
+        html += `<td class="bg-slate-800"></td>`;
+        outputs.forEach(o => html += `<td class="py-1 px-2 text-cyan-300">${o.outputValues[0] || o.inputValues[0] || 0}</td>`);
+        html += `</tr>`;
+    }
+    html += `</tbody></table>`;
+    container.innerHTML = html;
+    inputs.forEach((inp, idx) => inp.internalState.value = saved[idx]);
+    evaluateCircuit();
+}
+
+function toggleBottomPanel() { document.getElementById('bottom-panel').classList.toggle('hidden'); }
+function switchBottomTab(tab) {
+    document.getElementById('view-analyzer').classList.toggle('hidden', tab !== 'analyzer');
+    document.getElementById('view-truthtable').classList.toggle('hidden', tab !== 'truthtable');
+}
+
+// --- Preset Example Circuits loader ---
+function loadPresetCircuit(name) {
+    state.components = []; state.wires = []; state.waveformHistory = []; deselectAll(); resetView();
+    if (name === 'demo_and') {
+        const s1 = createComponent('SWITCH', 120, 160, 'A', {}, true);
+        const s2 = createComponent('SWITCH', 120, 240, 'B', {}, true);
+        const and = createComponent('AND', 300, 200, 'AND1', { numInputs: 2 });
+        const led = createComponent('LED', 480, 200, 'OUT', { color: '#10b981' }, true);
+        addWire(s1.id, 0, and.id, 0); addWire(s2.id, 0, and.id, 1); addWire(and.id, 0, led.id, 0);
+        showToast('Loaded Single AND Gate Demo');
+    } else if (name === 'demo_mux') {
+        const mux = createComponent('MUX', 340, 220, 'MUX4', { channels: 4 });
+        for (let i = 0; i < 4; i++) {
+            const sw = createComponent('SWITCH', 140, 100 + i * 50, `D${i}`, { initialState: i % 2 });
+            addWire(sw.id, 0, mux.id, i);
+        }
+        const s0 = createComponent('SWITCH', 220, 360, 'S0', {}, true);
+        const s1 = createComponent('SWITCH', 220, 410, 'S1', {}, true);
+        addWire(s0.id, 0, mux.id, 4); addWire(s1.id, 0, mux.id, 5);
+        const led = createComponent('LED', 520, 220, 'Y', { color: '#06b6d4' }, true);
+        addWire(mux.id, 0, led.id, 0);
+        showToast('Loaded 4-to-1 Multiplexer Demo');
+    } else if (name === 'demo_dff') {
+        const clk = createComponent('CLOCK', 140, 180, 'CLK', { freq: 2.0 }, true);
+        const dff = createComponent('DFF', 340, 180, 'DFF1', { edge: 'RISING', showQBar: true });
+        const led = createComponent('LED', 520, 180, 'Q', { color: '#10b981' }, true);
+        addWire(dff.id, 1, dff.id, 0); // Q_bar to D for frequency division toggle
+        addWire(clk.id, 0, dff.id, 1);
+        addWire(dff.id, 0, led.id, 0);
+        showToast('Loaded D Flip-Flop Frequency Divider Demo');
+    } else if (name === 'demo_sevseg') {
+        const d0 = createComponent('SWITCH', 140, 140, 'D0', {}, true);
+        const d1 = createComponent('SWITCH', 140, 200, 'D1', {}, true);
+        const d2 = createComponent('SWITCH', 140, 260, 'D2', {}, true);
+        const d3 = createComponent('SWITCH', 140, 320, 'D3', {}, true);
+        const hex = createComponent('SEVENSEG', 360, 220, 'HEX', { mode: 'BCD', color: '#f43f5e' });
+        addWire(d0.id, 0, hex.id, 0); addWire(d1.id, 0, hex.id, 1); addWire(d2.id, 0, hex.id, 2); addWire(d3.id, 0, hex.id, 3);
+        showToast('Loaded 7-Segment Decoder Demo');
+    } else if (name === 'counter_7seg') {
+        const clk = createComponent('CLOCK', 140, 160, 'CLK', { freq: 2.0 }, true);
+        const en = createComponent('CONST', 140, 220, 'EN', { constVal: 1 });
+        const rst = createComponent('BUTTON', 140, 280, 'RST');
+        const cnt = createComponent('COUNTER', 320, 220, 'CNT', { bits: 4 });
+        const hex = createComponent('SEVENSEG', 520, 220, 'HEX', { mode: 'BCD', color: '#f43f5e' });
+        addWire(clk.id, 0, cnt.id, 0, true); addWire(en.id, 0, cnt.id, 1); addWire(rst.id, 0, cnt.id, 2);
+        for(let i=0; i<4; i++) addWire(cnt.id, i, hex.id, i);
+        showToast('Loaded 4-Bit Counter + 7-Segment');
+    } else if (name === 'full_adder') {
+        const add = createComponent('ADDER', 360, 220, 'ADD4', { bits: 4 });
+        const pr = createComponent('PROBE', 540, 220, 'SUM', { bits: 4 });
+        for (let i = 0; i < 4; i++) {
+            const a = createComponent('SWITCH', 120, 60 + i * 42, `A${i}`, { initialState: i === 0 ? 1 : 0 });
+            const b = createComponent('SWITCH', 210, 240 + i * 42, `B${i}`, { initialState: i === 0 ? 1 : 0 });
+            addWire(a.id, 0, add.id, i); addWire(b.id, 0, add.id, 4 + i);
+        }
+        for (let i = 0; i < 4; i++) addWire(add.id, i, pr.id, i);
+        showToast('Loaded 4-Bit Adder');
+    } else if (name === 'sr_latch') {
+        const s = createComponent('SWITCH', 150, 140, 'SET', {}, true);
+        const r = createComponent('SWITCH', 150, 240, 'RESET', {}, true);
+        const latch = createComponent('SRLATCH', 350, 190, 'SR1', { gated: false });
+        const led = createComponent('LED', 530, 150, 'Q', { color: '#10b981' }, true);
+        addWire(s.id, 0, latch.id, 0); addWire(r.id, 0, latch.id, 1); addWire(latch.id, 0, led.id, 0);
+        showToast('Loaded SR Latch');
+    } else if (name === 'shift_reg') {
+        const din = createComponent('SWITCH', 140, 140, 'DIN', { initialState: 1 }, true);
+        const clk = createComponent('CLOCK', 140, 220, 'CLK', { freq: 2.0 }, true);
+        const sr = createComponent('SHIFTREG', 340, 220, 'SR8', { bits: 8 });
+        addWire(din.id, 0, sr.id, 0); addWire(clk.id, 0, sr.id, 1);
+        for(let i=0; i<8; i++) {
+            const led = createComponent('LED', 540, 60 + i * 42, `Q${i}`, { color: '#06b6d4' });
+            addWire(sr.id, i, led.id, 0);
+        }
+        showToast('Loaded 8-Bit Shift Register');
+    }
+    evaluateCircuit();
+}
+
+function resizeCanvas() {
+    const container = document.getElementById('canvas-container');
+    canvas.width = container.clientWidth; canvas.height = container.clientHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+
+let lastFrame = 0;
+function mainLoop(timestamp) {
+    if (!lastFrame) lastFrame = timestamp;
+    const dt = Math.min(0.1, (timestamp - lastFrame) / 1000);
+    lastFrame = timestamp;
+
+    if (state.isRunning) {
+        if (timestamp - state.lastClockTime >= 50) {
+            state.lastClockTime = timestamp;
+            advanceSimulationStep(0.05);
+        }
+        state.pulsePhase = (state.pulsePhase + 0.8) % 20;
+    }
+
+    drawGrid();
+    ctx.save();
+    ctx.translate(state.pan.x, state.pan.y);
+    ctx.scale(state.zoom, state.zoom);
+    drawWires();
+    drawComponents();
+    ctx.restore();
+
+    drawLogicAnalyzer();
+    requestAnimationFrame(mainLoop);
+}
+
+window.onload = function () {
+    renderSidebar();
+    resizeCanvas();
+    loadPresetCircuit('counter_7seg');
+    requestAnimationFrame(mainLoop);
+};
+</script>
+<script>
+(function(){
+const SB=['library','examples','ai','inspector','projects','workspace'];
+const COL={library:'bg-cyan-600',examples:'bg-emerald-600',ai:'bg-purple-600',inspector:'bg-amber-600',projects:'bg-rose-600',workspace:'bg-sky-600'};
+const BASE='px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all ';
+const IDLE=BASE+'text-slate-300 hover:text-white hover:bg-slate-800';
+window.closeAllSidebars=function(){state.activeSidebar=null;SB.forEach(s=>{const e=document.getElementById('sidebar-'+s);if(e)e.classList.add('hidden');const b=document.getElementById('island-btn-'+s);if(b)b.className=IDLE;});};
+window.toggleSidebar=function(n){const was=state.activeSidebar===n;closeAllSidebars();if(was)return;state.activeSidebar=n;
+document.getElementById('sidebar-'+n).classList.remove('hidden');document.getElementById('island-btn-'+n).className=BASE+COL[n]+' text-white shadow';
+if(n==='inspector')renderInspectorPanel();if(n==='workspace')renderWs();};
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// ---------- 10 projects ----------
+const L=(t,x,y,l,o,p)=>createComponent(t,x,y,l,o||{},!!p);
+const W=(a,i,b,j)=>addWire(a.id,i,b.id,j);
+const SW=(x,y,l,on)=>L('SWITCH',x,y,l,{initialState:on?1:0},true);
+const LED=(x,y,l,c)=>L('LED',x,y,l,{color:c||'#10b981'},true);
+const PROJECTS=[
+{id:'clock',name:'Digital Clock (00–59 seconds)',lvl:'Intermediate',parts:'Clock, 2× Counter, AND, NOT, 2× 7-Segment',
+desc:'Units counter resets at 10 (Q1·Q3), its falling Q3 clocks the tens counter, which resets at 6 (Q1·Q2). Extend with minutes the same way.',
+build(){const c=L('CLOCK',100,160,'1Hz',{freq:1},true),e=L('CONST',100,260,'EN'),u=L('COUNTER',300,160,'SEC_U',{bits:4}),t=L('COUNTER',300,380,'SEC_T',{bits:3}),a1=L('AND',480,90,'÷10'),a2=L('AND',480,500,'÷6'),n=L('NOT',480,250,'¬Q3'),hu=L('SEVENSEG',680,160,'UNITS'),ht=L('SEVENSEG',680,380,'TENS');
+W(c,0,u,0);W(e,0,u,1);W(e,0,t,1);W(u,1,a1,0);W(u,3,a1,1);W(a1,0,u,2);W(u,3,n,0);W(n,0,t,0);W(t,1,a2,0);W(t,2,a2,1);W(a2,0,t,2);
+for(let i=0;i<4;i++)W(u,i,hu,i);for(let i=0;i<3;i++)W(t,i,ht,i);}},
+{id:'cpu8',name:'8-bit Accumulator CPU Datapath',lvl:'Advanced',parts:'2× 4-bit Adder, 2× Register, Counter, Probe, 7-Segment, Switches',
+desc:'ALU = two chained 4-bit adders (carry Cout→Cin); ACC = two 4-bit registers feeding back. Set B on the switches, press LOAD with the clock running: ACC ← ACC + B. PC counts cycles. Probe shows ACC.',
+build(){const al=L('ADDER',340,150,'ADD_LO',{bits:4}),ah=L('ADDER',340,390,'ADD_HI',{bits:4}),rl=L('REGISTER',560,150,'ACC_LO',{bits:4}),rh=L('REGISTER',560,390,'ACC_HI',{bits:4}),pr=L('PROBE',760,270,'ACC',{bits:8}),
+ck=L('CLOCK',100,530,'CLK',{freq:2},true),ld=L('SWITCH',100,590,'LOAD',{initialState:1},true),rs=L('BUTTON',100,650,'RST'),pc=L('COUNTER',340,610,'PC',{bits:4}),en=L('CONST',200,650,'EN'),hx=L('SEVENSEG',540,610,'PC');
+for(let i=0;i<8;i++){const s=SW(100,50+i*44,'B'+i);W(s,0,i<4?al:ah,(i%4)+4);}
+for(let i=0;i<4;i++){W(rl,i,al,i);W(rh,i,ah,i);W(al,i,rl,i);W(ah,i,rh,i);W(rl,i,pr,i);W(rh,i,pr,i+4);W(pc,i,hx,i);}
+W(al,4,ah,8);[rl,rh].forEach(r=>{W(ld,0,r,4);W(ck,0,r,5);W(rs,0,r,6);});W(ck,0,pc,0);W(en,0,pc,1);W(rs,0,pc,2);}},
+{id:'traffic',name:'Traffic Light Controller',lvl:'Beginner',parts:'Clock, 2-bit Counter, Decoder, OR, 3× LED',
+desc:'A 2-bit counter steps a 2:4 decoder through Red → Green → Yellow → Red (state 3 re-uses red via OR).',
+build(){const c=L('CLOCK',100,200,'CLK',{freq:0.5},true),k=L('COUNTER',280,200,'FSM',{bits:2}),e=L('CONST',100,300,'EN'),d=L('DECODER',480,200,'DEC',{inBits:2,hasEnable:true}),o=L('OR',660,100,'RED_OR'),
+r=LED(820,100,'RED','#ef4444'),y=LED(660,220,'YEL','#eab308'),g=LED(660,310,'GRN','#22c55e');
+W(c,0,k,0);W(e,0,k,1);W(k,0,d,0);W(k,1,d,1);W(e,0,d,2);W(d,0,o,0);W(d,3,o,1);W(o,0,r,0);W(d,1,g,0);W(d,2,y,0);}},
+{id:'adder4',name:'4-bit Binary Calculator',lvl:'Beginner',parts:'4-bit Adder, 9× Switch, 7-Segment, LED',
+desc:'Set A and B on the switches (plus carry-in). The sum shows on a hex display and Cout lights the LED.',
+build(){const a=L('ADDER',340,300,'ADD',{bits:4}),h=L('SEVENSEG',560,260,'SUM'),l=LED(560,400,'Cout','#f59e0b');
+for(let i=0;i<4;i++){W(SW(100,100+i*50,'A'+i),0,a,i);W(SW(100,360+i*50,'B'+i),0,a,4+i);W(a,i,h,i);}W(SW(100,580,'Cin'),0,a,8);W(a,4,l,0);}},
+{id:'johnson',name:'Johnson Counter LED Chaser',lvl:'Beginner',parts:'Clock, Shift Register, NOT, Button, 4× LED',
+desc:'The inverted output of the last stage (Q0) feeds the shift register input, producing an 8-state running-light pattern. RST clears it.',
+build(){const c=L('CLOCK',100,160,'CLK',{freq:4},true),s=L('SHIFTREG',300,200,'JOHNSON',{bits:4}),n=L('NOT',300,360,'¬Q0'),r=L('BUTTON',100,300,'RST');
+W(c,0,s,1);W(r,0,s,2);W(n,0,s,0);W(s,0,n,0);for(let i=0;i<4;i++)W(s,i,LED(560,80+i*60,'L'+i,'#f59e0b'),0);}},
+{id:'parity',name:'Parity Generator',lvl:'Beginner',parts:'3× XOR, NOT, 4× Switch, 2× LED',
+desc:'XOR tree over 4 data bits gives the even-parity bit; its inverse is the odd-parity bit. Used for error detection.',
+build(){const x1=L('XOR',300,130,'X1'),x2=L('XOR',300,290,'X2'),x3=L('XOR',500,210,'X3'),n=L('NOT',660,300,'ODD');
+for(let i=0;i<4;i++)W(SW(100,100+i*60,'D'+i),0,i<2?x1:x2,i%2);W(x1,0,x3,0);W(x2,0,x3,1);W(x3,0,LED(820,210,'EVEN','#06b6d4'),0);W(x3,0,n,0);W(n,0,LED(820,300,'ODD','#f43f5e'),0);}},
+{id:'alu1',name:'1-bit ALU',lvl:'Intermediate',parts:'AND, OR, XOR, 1-bit Adder, 4:1 MUX, Switches, 2× LED',
+desc:'Op select S1S0: 00=AND, 01=OR, 10=XOR, 11=ADD (sum + carry LED). Chain 4 of these for a wider ALU.',
+build(){const a=SW(100,120,'A'),b=SW(100,200,'B'),g=[L('AND',300,60,'AND'),L('OR',300,140,'OR'),L('XOR',300,220,'XOR'),L('ADDER',300,330,'ADD',{bits:1})],m=L('MUX',540,200,'OP',{channels:4}),
+s0=SW(320,440,'S0'),s1=SW(320,490,'S1');g.forEach(x=>{W(a,0,x,0);W(b,0,x,1);});for(let i=0;i<4;i++)W(g[i],0,m,i);W(s0,0,m,4);W(s1,0,m,5);W(m,0,LED(720,200,'Y','#10b981'),0);W(g[3],1,LED(540,360,'Cout','#f59e0b'),0);}},
+{id:'divider',name:'Clock Divider Chain',lvl:'Beginner',parts:'Clock, 3× T Flip-Flop, Constant, 3× LED',
+desc:'Each T flip-flop (T=1) halves the frequency: ÷2, ÷4, ÷8. Watch the Logic Analyzer.',
+build(){const c=L('CLOCK',100,200,'CLK',{freq:8},true);let p=c;for(let i=0;i<3;i++){const t=L('TFF',300+i*220,200,'T'+i),k=L('CONST',300+i*220,340,'T=1');W(k,0,t,0);W(p,0,t,1);const l=LED(300+i*220+115,200,'÷'+(2<<i),'#10b981');l.probed=true;W(t,0,l,0);p=t;}}},
+{id:'memory',name:'4-bit Register (Memory)',lvl:'Beginner',parts:'4-bit Register, Buttons, Switches, 4× LED, 7-Segment',
+desc:'Set data on D0–D3, keep LOAD on and press CLK: the value is stored and shown on LEDs and hex display until overwritten.',
+build(){const r=L('REGISTER',340,200,'REG',{bits:4}),c=L('BUTTON',100,340,'CLK'),ld=SW(100,400,'LOAD',1),rs=L('BUTTON',100,460,'RST'),h=L('SEVENSEG',720,200,'OUT');
+for(let i=0;i<4;i++){W(SW(100,100+i*50,'D'+i),0,r,i);W(r,i,LED(560,100+i*50,'Q'+i,'#06b6d4'),0);W(r,i,h,i);}W(ld,0,r,4);W(c,0,r,5);W(rs,0,r,6);}},
+{id:'lock',name:'Digital Door Lock (code 1011)',lvl:'Intermediate',parts:'4-bit Comparator, Constants, NOT, 4× Switch, 2× LED',
+desc:'The comparator matches your 4 switches against a hard-wired code (1,0,1,1 from constants). A=B unlocks the green LED.',
+build(){const c=L('COMPARATOR',340,260,'CMP',{bits:4}),n=L('NOT',560,330,'¬OK'),code=[1,0,1,1];
+for(let i=0;i<4;i++){W(SW(100,100+i*50,'K'+i),0,c,i);W(L('CONST',100,360+i*50,'C'+i,{constVal:code[i]}),0,c,4+i);}
+W(c,1,LED(720,260,'OPEN','#22c55e'),0);W(c,1,n,0);W(n,0,LED(720,350,'LOCKED','#ef4444'),0);}}
+];
+window.loadProject=function(id){const p=PROJECTS.find(x=>x.id===id);if(!p)return;wsDetach();state.components=[];state.wires=[];state.waveformHistory=[];deselectAll();resetView();nextId=1;p.build();powerOn();showToast('Loaded: '+p.name);closeAllSidebars();};
+const lc={Beginner:'text-emerald-400',Intermediate:'text-amber-400',Advanced:'text-rose-400'};
+document.getElementById('projects-list').innerHTML=PROJECTS.map((p,i)=>`<div class="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800"><div class="flex justify-between gap-2"><span class="font-semibold text-slate-200">${i+1}. ${p.name}</span><span class="${lc[p.lvl]} text-[10px] shrink-0">${p.lvl}</span></div><div class="text-slate-400 mt-1">${p.desc}</div><div class="text-[10px] text-slate-500 mt-1">Parts: ${p.parts}</div><button onclick="loadProject('${p.id}')" class="mt-2 w-full py-1 rounded-md bg-rose-600 hover:bg-rose-500 text-white font-semibold">Load on canvas →</button></div>`).join('');
+// ---------- save / open / new ----------
+const KEY='logiclab_projects_v1';let mem=[];
+const rd=()=>{try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){return mem}};
+const wr=a=>{mem=a;try{localStorage.setItem(KEY,JSON.stringify(a))}catch(e){}};
+const snap=()=>({nextId,components:state.components.map(c=>({id:c.id,type:c.type,x:c.x,y:c.y,label:c.label,options:c.options,internalState:c.internalState,probed:c.probed})),wires:state.wires.map(w=>({id:w.id,fromCompId:w.fromCompId,fromPinIdx:w.fromPinIdx,toCompId:w.toCompId,toPinIdx:w.toPinIdx,probed:w.probed}))});
+function restore(d){state.components=[];state.wires=[];state.waveformHistory=[];deselectAll();resetView();nextId=d.nextId||1;
+(d.components||[]).forEach(c=>{const o=JSON.parse(JSON.stringify(c));state.components.push(o);buildComponentGeometry(o);});state.wires=(d.wires||[]).map(w=>({...w,value:0}));evaluateCircuit();}
+function save(quiet){const a=rd();let p=a.find(x=>x.id===state.cur);if(!p){p={id:'p'+Date.now(),name:(document.getElementById('ws-name').value.trim()||'Untitled '+(a.length+1))};a.unshift(p);state.cur=p.id;document.getElementById('ws-name').value='';}
+const d=snap(),sg=x=>JSON.stringify([x.components.map(c=>[c.id,c.type,c.x,c.y,c.label,c.options,c.probed]),x.wires.map(w=>[w.fromCompId,w.fromPinIdx,w.toCompId,w.toPinIdx])]);if(quiet&&p.data&&sg(p.data)===sg(d))return;p.data=d;p.updated=Date.now();wr(a);if(!quiet)showToast('Saved: '+p.name);renderWs();}
+window.wsSave=()=>save(false);
+window.wsNew=function(){if(!state.cur&&state.components.length&&!confirm('The current canvas is unsaved and will be discarded. Continue?'))return;if(state.cur)save(true);state.components=[];state.wires=[];state.waveformHistory=[];deselectAll();resetView();nextId=1;state.cur=null;save(false);};
+window.wsOpen=function(id){if(!state.cur&&state.components.length&&!confirm('The current canvas is unsaved and will be discarded. Continue?'))return;if(state.cur)save(true);const p=rd().find(x=>x.id===id);if(!p)return;restore(p.data);state.cur=id;showToast('Opened: '+p.name);renderWs();};
+window.wsDel=function(id){if(!confirm('Delete this project?'))return;wr(rd().filter(x=>x.id!==id));if(state.cur===id)state.cur=null;renderWs();};
+function renderWs(){const a=rd(),cur=a.find(x=>x.id===state.cur);document.getElementById('ws-current').textContent=cur?'Editing: '+cur.name+' (autosaves)':'Unsaved canvas — name it above and save.';
+document.getElementById('ws-list').innerHTML=a.length?a.map(p=>`<div class="p-2 rounded-lg border ${p.id===state.cur?'border-sky-500 bg-sky-950/30':'border-slate-800 bg-slate-950/60'} flex items-center justify-between gap-2"><div class="min-w-0"><div class="font-medium text-slate-200 truncate">${esc(p.name)}</div><div class="text-[10px] text-slate-500">${p.data.components.length} parts · ${new Date(p.updated).toLocaleString()}</div></div><div class="flex gap-1 shrink-0"><button onclick="wsOpen('${p.id}')" class="px-2 py-1 rounded bg-sky-600 hover:bg-sky-500 text-white">Open</button><button onclick="wsDel('${p.id}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-red-600 text-slate-300">✕</button></div></div>`).join(''):'<div class="text-slate-500">No saved projects yet.</div>';}
+setInterval(()=>{if(state.cur)save(true);},8000);
+window.wsDetach=function(){if(state.cur){save(true);state.cur=null;renderWs();}};
+window.addEventListener('beforeunload',()=>{if(state.cur)save(true);});
+// ---------- AI that edits the canvas ----------
+const SYS=`You are an expert digital-logic engineer embedded in a circuit simulator. You can edit the canvas. Reply ONLY with JSON: {"message":"short explanation","actions":[...]}. Actions:
+{"op":"add","ref":"a","type":"AND","x":300,"y":200,"label":"G1","options":{}}
+{"op":"wire","from":"a","fromPin":0,"to":"b","toPin":1}   (from/to = ref, label or id; pins = index)
+{"op":"unwire","to":"b","toPin":1}  {"op":"remove","target":"a"}  {"op":"set","target":"a","options":{},"label":"x","value":1}  {"op":"clear"}
+Types and pin order (inputs | outputs): SWITCH,BUTTON,CLOCK,CONST: - | Q. LED: IN | -. SEVENSEG(mode BCD): D0-D3 | -. PROBE(bits): B0.. | -. BUFFER,NOT: A | Y. AND,NAND,OR,NOR,XOR,XNOR(numInputs 2-8): I0.. | Y. MUX(channels 2/4/8): D0..Dn-1,S0.. | Y. DEMUX(channels): DIN,S0.. | Y0... DECODER(inBits,hasEnable): A0..,EN | Y0... ENCODER(outBits): I0.. | Y0..,V. ADDER(bits 1/2/4): A0..,B0..,Cin | S0..,Cout. COMPARATOR(bits): A0..,B0.. | A>B,A=B,A<B. SRLATCH: S,R | Q,Qbar. DFF: D,CLK | Q,Qbar. JKFF: J,CLK,K | Q,Qbar. TFF: T,CLK | Q,Qbar. COUNTER(bits): CLK,EN,RST | Q0..,TC. SHIFTREG(bits): DIN,CLK,RST | Q0... REGISTER(bits): D0..,LOAD,CLK,RST | Q0...
+Options: SWITCH{initialState}, CLOCK{freq 0.5-20}, CONST{constVal}, LED{color hex}. Layout: signal flows left to right, ~180px between columns, ~60px between rows, start right of existing parts (see maxX), x 80-1400, y 60-700. Use "add" with a ref before wiring it in the same reply. If the user only asks a question, return an empty actions list.`;
+const hist=[];
+function summary(){const nm=c=>c.label;let mx=0;const cs=state.components.map(c=>{mx=Math.max(mx,c.x+c.w/2);return `${c.id} "${c.label}" ${c.type} @(${c.x},${c.y}) in[${c.inputs.map(p=>p.name).join(',')}] out[${c.outputs.map(p=>p.name).join(',')}] ${JSON.stringify(c.options)}`;});
+const byId=Object.fromEntries(state.components.map(c=>[c.id,c]));const ws=state.wires.map(w=>`${byId[w.fromCompId]?.label}.${w.fromPinIdx}->${byId[w.toCompId]?.label}.${w.toPinIdx}`);
+return `maxX=${Math.round(mx)}\nCOMPONENTS:\n${cs.join('\n')||'(empty)'}\nWIRES: ${ws.join('; ')||'(none)'}`;}
+const TYPES=new Set(SIDEBAR_CATEGORIES.flatMap(c=>c.items.map(i=>i.type)));
+function apply(actions){const al={},log=[];const F=r=>r==null?null:(al[r]||state.components.find(c=>c.id===r)||state.components.find(c=>c.label.toLowerCase()===String(r).toLowerCase()));
+const P=(l,p)=>{if(/^\d+$/.test(String(p)))return +p;return l.findIndex(x=>x.name.toLowerCase()===String(p).toLowerCase());};
+(Array.isArray(actions)?actions.slice(0,200):[]).forEach(a=>{try{
+if(a.op==='add'){if(!TYPES.has(a.type))throw 'bad type '+a.type;const c=createComponent(a.type,Math.min(2000,Math.max(0,+a.x||200)),Math.min(1200,Math.max(0,+a.y||200)),a.label?String(a.label).slice(0,24):null,sanitizeOpts(a.type,a.options),a.type==='CLOCK'||a.type==='LED'||a.type==='SWITCH');al[a.ref||c.label]=c;al[c.label]=c;log.push('+'+c.label);}
+else if(a.op==='wire'){const f=F(a.from),t=F(a.to);if(!f||!t)throw 'wire: unknown part';const i=P(f.outputs,a.fromPin),j=P(t.inputs,a.toPin);if(i<0||j<0||i>=f.outputs.length||j>=t.inputs.length)throw `wire ${f.label}.${a.fromPin}->${t.label}.${a.toPin}: bad pin`;addWire(f.id,i,t.id,j);log.push('~');}
+else if(a.op==='unwire'){const t=F(a.to);if(!t)throw 'unwire';const j=P(t.inputs,a.toPin);state.wires=state.wires.filter(w=>!(w.toCompId===t.id&&w.toPinIdx===j));log.push('-wire');}
+else if(a.op==='remove'){const c=F(a.target);if(!c)throw 'remove: unknown';state.components=state.components.filter(x=>x.id!==c.id);state.wires=state.wires.filter(w=>w.fromCompId!==c.id&&w.toCompId!==c.id);log.push('-'+c.label);}
+else if(a.op==='set'){const c=F(a.target);if(!c)throw 'set: unknown';if(a.options)updateOptionsKeepWires(c,a.options);if(a.label)c.label=String(a.label).slice(0,24);if(a.value!=null)c.internalState.value=a.value?1:0;log.push('*'+c.label);}
+else if(a.op==='clear'){state.components=[];state.wires=[];state.waveformHistory=[];deselectAll();log.push('clear');}
+}catch(e){log.push('⚠ '+e);}});evaluateCircuit();return log;}
+window.sendAiMessage=async function(promptText){const el=document.getElementById('ai-input'),q=promptText||el.value.trim();if(!q)return;if(!promptText)el.value='';
+appendChatMessage('user',q);appendChatMessage('model','Thinking...',true);
+try{hist.push({role:'user',parts:[{text:'CURRENT CIRCUIT:\n'+summary()+'\n\nREQUEST: '+q}]});
+const url=`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${encodeURIComponent((()=>{try{return localStorage.getItem('logiclab_gemini_key')||''}catch(e){return ''}})())}`;let r=null;
+for(let k=0;k<3;k++){try{r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:hist.slice(-8),systemInstruction:{parts:[{text:SYS}]},generationConfig:{responseMimeType:'application/json'}})});if(r.ok)break;}catch(e){if(k===2)throw e;await new Promise(z=>setTimeout(z,1000*2**k));}}
+const jr=await r.json();if(!r.ok){removeLoadingMessage();hist.pop();appendChatMessage('model','API error '+r.status+': '+(jr.error?.message||'request failed')+(r.status===400||r.status===403?' — set your Gemini API key with the 🔑 button.':''));return;}const txt=jr.candidates?.[0]?.content?.parts?.[0]?.text||'';hist.push({role:'model',parts:[{text:txt}]});
+let o;try{o=JSON.parse(txt.replace(/```json|```/g,'').trim());}catch(e){o={message:txt||"I couldn't generate a response.",actions:[]};}
+removeLoadingMessage();const log=apply(o.actions);appendChatMessage('model',(o.message||'Done.')+(log.length?'\n\n✔ '+log.join(' '):''));if(log.length)showToast('AI edited the canvas');
+}catch(e){removeLoadingMessage();appendChatMessage('model','Error connecting to Gemini API. Please check your network.');}};
+appendChatMessage('model','I can now build and edit circuits on the canvas. Try: "add a 4-bit counter driving a 7-segment display".');
+})();
+</script>
+<script>
+(function(){
+window.escHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const SEQ=new Set(['SRLATCH','DFF','JKFF','TFF','COUNTER','SHIFTREG','REGISTER']);
+const SRC=new Set(['SWITCH','BUTTON','CONST','CLOCK','GPIO_IN']);
+// ---- option sanitising (AI / inspector) ----
+window.powerOn=function(){for(const c of state.components)if(c.type==='CLOCK'){c.internalState.phaseAcc=(c.options.duty||50)/100;c.internalState.value=0;}
+for(let k=0;k<2;k++){evaluateCircuit();
+for(const c of state.components)if(SEQ.has(c.type)){c.internalState.count=0;c.internalState.regVal=0;c.internalState.q=0;}}evaluateCircuit();};
+window.sanitizeOpts=function(type,o){const r={};if(!o||typeof o!=='object')return r;
+for(const k in o){const v=o[k],n=+v;switch(k){
+case 'bits':if([1,2,3,4,8].includes(n))r.bits=n;break;
+case 'channels':if([2,4,8].includes(n))r.channels=n;break;
+case 'numInputs':if(Number.isInteger(n)&&n>=2&&n<=8)r.numInputs=n;break;
+case 'inBits':case 'outBits':if(n===2||n===3)r[k]=n;break;
+case 'freq':if(n>0)r.freq=Math.min(20,Math.max(0.5,n));break;
+case 'duty':if(n>0)r.duty=Math.min(95,Math.max(5,n));break;
+case 'invertInputsMask':if(Number.isInteger(n)&&n>=0&&n<256)r.invertInputsMask=n;break;
+case 'constVal':r.constVal=v?1:0;break;
+case 'initialState':case 'activeLow':case 'gated':case 'asyncSR':case 'showQBar':case 'hasEnable':r[k]=!!v;break;
+case 'color':if(/^#[0-9a-f]{6}$/i.test(v))r.color=v;break;
+case 'mode':if(['TOGGLE','MOMENTARY','BCD','RAW'].includes(v))r.mode=v;break;
+case 'edge':if(['RISING','FALLING'].includes(v))r.edge=v;break;
+case 'direction':if(['UP','DOWN','LEFT','RIGHT'].includes(v))r.direction=v;break;
+case 'resetType':if(['ASYNC','SYNC'].includes(v))r.resetType=v;break;
+case 'pin':if(Number.isInteger(n)&&n>=0&&n<40)r.pin=n;break;
+case 'gpio':if(v==='NONE')r.gpio='NONE';else if(v!==''&&v!==null&&Number.isInteger(n)&&n>=0&&n<40)r.gpio=n;break;
+case 'pull':case 'gpioPull':if(['NONE','UP','DOWN'].includes(v))r[k]=v;break;
+case 'invert':case 'gpioInv':r[k]=!!v;break;}}
+return r;};
+// change options but keep wires attached to the same pin NAMES (indices shift when pin counts change)
+window.updateOptionsKeepWires=function(comp,opts){
+const inN=comp.inputs.map(p=>p.name),outN=comp.outputs.map(p=>p.name);
+const mine=state.wires.filter(w=>w.fromCompId===comp.id||w.toCompId===comp.id);
+const saved=mine.map(w=>({w,fn:w.fromCompId===comp.id?outN[w.fromPinIdx]:null,tn:w.toCompId===comp.id?inN[w.toPinIdx]:null}));
+Object.assign(comp.options,window.sanitizeOpts(comp.type,opts));
+state.wires=state.wires.filter(w=>!mine.includes(w));
+buildComponentGeometry(comp);
+saved.forEach(({w,fn,tn})=>{if(fn!==null){const i=comp.outputs.findIndex(p=>p.name===fn);if(i<0)return;w.fromPinIdx=i;}
+if(tn!==null){const j=comp.inputs.findIndex(p=>p.name===tn);if(j<0)return;w.toPinIdx=j;}state.wires.push(w);});
+evaluateCircuit();};
+window.updateCompOption=function(key,val){const c=state.components.find(x=>x.id===state.selectedCompId);if(!c)return;
+if(key==='label'){c.label=String(val||'U1').slice(0,24);return;}if(key==='probed'){c.probed=!!val;return;}
+updateOptionsKeepWires(c,{[key]:val});renderInspectorPanel();};
+// ---- wires: allow feedback on sequential parts (e.g. Q̄ -> D), validate pins ----
+window.addWire=function(fc,fp,tc,tp,probed=false){const f=state.components.find(c=>c.id===fc),t=state.components.find(c=>c.id===tc);
+if(!f||!t||(fc===tc&&!SEQ.has(f.type))||fp>=f.outputs.length||tp>=t.inputs.length||fp<0||tp<0)return null;
+state.wires=state.wires.filter(w=>!(w.toCompId===tc&&w.toPinIdx===tp));
+const wire={id:generateId('w'),fromCompId:fc,fromPinIdx:fp,toCompId:tc,toPinIdx:tp,value:0,probed};state.wires.push(wire);evaluateCircuit();return wire;};
+// ---- engine: settle to a fixed point, detect clock edges on every pass ----
+window.evaluateCircuit=function(){const cs=state.components,by=new Map(cs.map(c=>[c.id,c]));
+for(const c of cs)if(SRC.has(c.type))c.outputValues=evaluateComponentLogic(c,false);
+let last=null;
+for(let it=0;it<64;it++){
+for(const c of cs)c.inputValues.fill(0);
+for(const w of state.wires){const s=by.get(w.fromCompId),d=by.get(w.toCompId);
+if(s&&d&&w.fromPinIdx<s.outputValues.length&&w.toPinIdx<d.inputValues.length){const v=s.outputValues[w.fromPinIdx]||0;w.value=v;d.inputValues[w.toPinIdx]=v;}}
+let sig='',ch=false;for(const c of cs)sig+=c.inputValues.join('')+'|';
+for(const c of cs){const o=evaluateComponentLogic(c,true);if(o.length!==c.outputValues.length||o.some((v,i)=>v!==c.outputValues[i]))ch=true;c.outputValues=o;}
+if(sig===last&&!ch)break;last=sig;}};
+// ---- clocks: sub-step so fast clocks (up to 20 Hz) are never aliased ----
+window.advanceSimulationStep=function(dt=0.05){state.tickCount++;
+let fmax=0;for(const c of state.components)if(c.type==='CLOCK')fmax=Math.max(fmax,c.options.freq||2);
+const n=Math.min(32,Math.max(1,Math.ceil(fmax*dt*8))),h=dt/n;
+for(let k=0;k<n;k++){for(const c of state.components)if(c.type==='CLOCK'){const f=c.options.freq||2,duty=(c.options.duty||50)/100;
+c.internalState.phaseAcc=((c.internalState.phaseAcc||0)+f*h)%1;c.internalState.value=c.internalState.phaseAcc<duty?1:0;}
+evaluateCircuit();}
+recordWaveformSample();};
+window.getProbedSignals=function(){const l=[];for(const c of state.components)if(c.probed){const v=c.outputs.length?c.outputValues[0]:c.inputValues[0];l.push({key:c.id,label:c.label,value:v||0,color:'#10b981'});}
+for(const w of state.wires)if(w.probed){const s=state.components.find(c=>c.id===w.fromCompId);l.push({key:w.id,label:s?.label||'Wire',value:w.value,color:'#f59e0b'});}return l;};
+// ---- truth table: bounded, multi-bit aware, never disturbs sequential state ----
+window.generateTruthTable=function(){const box=document.getElementById('truth-table-container');
+const ins=state.components.filter(c=>c.type==='SWITCH'||c.type==='BUTTON'),outs=state.components.filter(c=>['LED','SEVENSEG','PROBE'].includes(c.type));
+const msg=t=>{box.innerHTML=`<div class="p-4 text-center text-xs text-slate-400">${t}</div>`;};
+if(!ins.length||!outs.length)return msg('Place input switches and output probes/LEDs.');
+if(ins.length>10)return msg(`Too many inputs (${ins.length}). The table supports up to 10 (1024 rows).`);
+const snapS=state.components.map(c=>JSON.stringify([c.internalState,c.outputValues])),saved=ins.map(i=>i.internalState.value);
+const fmt=o=>{const b=o.options.bits||4;if(o.type==='PROBE'){let v=0;for(let i=0;i<b;i++)v|=(o.inputValues[i]||0)<<i;return b>1?'0x'+v.toString(16).toUpperCase():v;}
+if(o.type==='SEVENSEG'){if(o.options.mode==='RAW')return o.inputValues.slice(0,7).join('');return((o.inputValues[0]|0)+2*(o.inputValues[1]|0)+4*(o.inputValues[2]|0)+8*(o.inputValues[3]|0)).toString(16).toUpperCase();}
+return o.inputValues[0]||0;};
+let h=`<table class="w-full text-center font-mono text-xs border-collapse"><thead><tr class="bg-slate-900 text-slate-300">`+ins.map(i=>`<th class="py-2 px-2 text-emerald-400">${escHtml(i.label)}</th>`).join('')+`<th class="w-px bg-slate-700"></th>`+outs.map(o=>`<th class="py-2 px-2 text-cyan-400">${escHtml(o.label)}</th>`).join('')+`</tr></thead><tbody class="divide-y divide-slate-800">`;
+for(let r=0;r<1<<ins.length;r++){ins.forEach((inp,i)=>inp.internalState.value=(r>>(ins.length-1-i))&1);evaluateCircuit();
+h+='<tr>'+ins.map(i=>`<td class="py-1 px-2 text-emerald-300">${i.internalState.value}</td>`).join('')+'<td class="bg-slate-800"></td>'+outs.map(o=>`<td class="py-1 px-2 text-cyan-300">${fmt(o)}</td>`).join('')+'</tr>';}
+box.innerHTML=h+'</tbody></table>';
+ins.forEach((inp,i)=>inp.internalState.value=saved[i]);state.components.forEach((c,i)=>{const[s,o]=JSON.parse(snapS[i]);c.internalState=s;c.outputValues=o;});evaluateCircuit();};
+// ---- don't let autosave overwrite a saved project when the canvas is replaced ----
+const _clr=window.executeClearCanvas;window.executeClearCanvas=function(){wsDetach();_clr();};
+const _lp=window.loadPresetCircuit;
+window.loadPresetCircuit=function(n){wsDetach();
+if(n==='mux_8to1'){state.components=[];state.wires=[];state.waveformHistory=[];deselectAll();resetView();
+const m=createComponent('MUX',360,260,'MUX8',{channels:8});
+for(let i=0;i<8;i++)addWire(createComponent('SWITCH',140,60+i*44,'D'+i,{initialState:i%2}).id,0,m.id,i);
+for(let i=0;i<3;i++)addWire(createComponent('SWITCH',240,460+i*44,'S'+i,{},true).id,0,m.id,8+i);
+addWire(m.id,0,createComponent('LED',540,260,'Y',{color:'#06b6d4'},true).id,0);showToast('Loaded 8-to-1 Multiplexer');return;}
+const r=_lp(n);powerOn();return r;};
+// ---- misc UI ----
+window.addEventListener('pointercancel',()=>window.dispatchEvent(new Event('pointerup')));
+const ac=document.getElementById('analyzer-channels'),dsc=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML');let lastH='';
+if(ac&&dsc)Object.defineProperty(ac,'innerHTML',{configurable:true,get(){return dsc.get.call(this);},set(v){if(v!==lastH){lastH=v;dsc.set.call(this,v);}}});
+const KEY='logiclab_gemini_key',hd=document.querySelector('#sidebar-ai > div');
+if(hd){const b=document.createElement('button');b.textContent='🔑';b.title='Set Gemini API key';b.className='text-slate-400 hover:text-white text-sm mr-2';
+b.onclick=()=>{const k=prompt('Gemini API key (stored only in this browser):',localStorage.getItem(KEY)||'');if(k!==null)try{localStorage.setItem(KEY,k.trim());}catch(e){}};hd.insertBefore(b,hd.lastElementChild);}
+})();
+</script>
+<script>
+/* ESP32 I/O bridge: maps real GPIO pins to GPIO_IN / GPIO_OUT parts via GET /io on the board. */
+(function () {
+    const FALLBACK = {
+        in: [4, 5, 13, 14, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33, 34, 35, 36, 39],
+        out: [2, 4, 5, 13, 14, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33]
+    };
+    const B = window.gpioBridge = { connected: false, caps: FALLBACK, levels: {}, sent: {} };
+    const $ = id => document.getElementById(id);
+    const parts = t => state.components.filter(c => c.type === t);
+    const kind = t => (t === 'GPIO_OUT' ? 'out' : 'in');
+    const list = t => (B.caps && B.caps[kind(t)]) || FALLBACK[kind(t)];
+    let failures = 0, inflight = false, builtFor = '', lastOk = 0;
+    // The link is declared offline only after this long without ANY reply from the board
+    // (i.e. Wi-Fi really gone). Shorter hiccups (busy board, Wi-Fi retry, slow reply) are ridden out.
+    const OFFLINE_AFTER_MS = 20000, OFFLINE_AFTER_NAVOFF_MS = 5000;
+    B.weak = false;
+
+    // Timers run in a Web Worker so they are not throttled when the tab is in the background
+    // (otherwise the board's safety watchdog would release the pins).
+    let wk = null, wkId = 0; const wkCb = new Map();
+    try {
+        wk = new Worker(URL.createObjectURL(new Blob(['onmessage=function(e){var i=e.data.id;setTimeout(function(){postMessage(i)},e.data.ms)}'], { type: 'text/javascript' })));
+        wk.onmessage = e => { const f = wkCb.get(e.data); wkCb.delete(e.data); if (f) f(); };
+        wk.onerror = () => { wk = null; wkCb.clear(); schedule(0); };
+    } catch (e) { wk = null; }
+    const setT = (fn, ms) => { if (!wk) return setTimeout(fn, ms); const id = ++wkId; wkCb.set(id, fn); wk.postMessage({ id, ms }); return id; };
+    const clrT = id => { if (!wk) clearTimeout(id); else wkCb.delete(id); };
+
+    B.pinOk = (type, p) => list(type).includes(p);
+    B.pinChoices = (type, cur) => {
+        const l = list(type).slice();
+        if (cur !== undefined && cur !== null && cur !== '' && Number.isInteger(+cur) && !l.includes(+cur)) l.push(+cur);
+        return l.sort((a, b) => a - b).map(p => ({ val: p, text: 'GPIO' + p + (list(type).includes(p) ? '' : ' (unavailable)') }));
+    };
+    B.defaultPin = type => {
+        const used = new Set(parts(type).map(c => +c.options.pin));
+        const l = list(type);
+        const free = l.find(p => !used.has(p));
+        return free === undefined ? l[0] : free;
+    };
+
+    // pin an ordinary Switch / Button / LED is bound to from the Inspector (null = none)
+    B.boundPin = c => {
+        const v = c.options.gpio;
+        return (v === undefined || v === null || v === 'NONE' || v === '' || !Number.isInteger(+v)) ? null : +v;
+    };
+    const spec = c => (c.type === 'GPIO_IN' || c.type === 'GPIO_OUT')
+        ? { pin: Number.isInteger(+c.options.pin) ? +c.options.pin : null, pull: c.options.pull, inv: !!c.options.invert }
+        : { pin: B.boundPin(c), pull: c.options.gpioPull, inv: !!c.options.gpioInv };
+    const inParts = () => [...parts('GPIO_IN'), ...parts('SWITCH'), ...parts('BUTTON')].filter(c => spec(c).pin !== null);
+    const outParts = () => [...parts('GPIO_OUT'), ...parts('LED')].filter(c => spec(c).pin !== null);
+    const outType = c => (c.type === 'GPIO_OUT' || c.type === 'LED') ? 'GPIO_OUT' : 'GPIO_IN';
+
+    // ---- build the request from the current circuit
+    function build() {
+        const outs = new Map(), ins = new Map();
+        for (const c of outParts()) {
+            const { pin, inv } = spec(c);
+            if (!B.pinOk('GPIO_OUT', pin)) continue;
+            const lit = c.type === 'LED' && c.options.activeLow ? !c.inputValues[0] : !!c.inputValues[0];
+            outs.set(pin, (lit ? 1 : 0) ^ (inv ? 1 : 0));
+        }
+        for (const c of inParts()) {
+            const { pin, pull } = spec(c);
+            if (!B.pinOk('GPIO_IN', pin) || outs.has(pin) || ins.has(pin)) continue;
+            ins.set(pin, pull === 'UP' ? 'u' : pull === 'DOWN' ? 'd' : '');
+        }
+        B.sent = Object.fromEntries(outs);
+        const i = [...ins].map(([p, m]) => p + m).join(',');
+        const o = [...outs].map(([p, v]) => p + ':' + v).join(',');
+        return { q: 'i=' + i + '&o=' + o, active: ins.size + outs.size > 0 };
+    }
+
+    // ---- apply the reply to the circuit
+    function apply(j) {
+        B.levels = (j && j.in) || {};
+        let changed = false;
+        for (const c of inParts()) {
+            const { pin, inv } = spec(c);
+            const raw = B.levels[String(pin)];
+            if (raw === undefined) continue;
+            const v = (raw ? 1 : 0) ^ (inv ? 1 : 0);
+            if (c.type === 'GPIO_IN') {
+                if (c.internalState.value !== v) { c.internalState.value = v; changed = true; }
+            } else {
+                // Switch / Button keep working by hand; they follow the pin whenever it changes
+                const key = pin + ':' + (inv ? 1 : 0) + ':' + raw;
+                if (c._gKey !== key) {
+                    c._gKey = key;
+                    if (c.internalState.value !== v) { c.internalState.value = v; changed = true; }
+                }
+            }
+        }
+        if (changed) evaluateCircuit();
+    }
+
+    // ---- settings (localStorage, every access guarded)
+    B.cfg = { host: '', auto: true };
+    try { Object.assign(B.cfg, JSON.parse(localStorage.getItem('logiclab.io') || '{}')); } catch (e) { /* defaults */ }
+    B.cfg.host = String(B.cfg.host || '').trim();
+    B.cfg.auto = B.cfg.auto !== false;
+    const saveCfg = () => { try { localStorage.setItem('logiclab.io', JSON.stringify(B.cfg)); } catch (e) { /* ignore */ } };
+    const base = () => B.cfg.host ? 'http://' + B.cfg.host.replace(/^https?:\/\//, '').replace(/\/+$/, '') : '';
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const clock = () => new Date().toLocaleTimeString([], { hour12: false });
+    B.busy = false; B.progress = ''; B.message = ''; B.messageOk = false;
+
+    // one request with a timeout; the failure reason is classified so it can be explained
+    async function call(path, ms) {
+        const ac = new AbortController(), to = setT(() => ac.abort(), ms || 1500), t0 = performance.now();
+        try {
+            const r = await fetch(base() + path, { cache: 'no-store', signal: ac.signal });
+            if (!r.ok) return { ok: false, why: 'http', status: r.status };
+            let j;
+            try { j = await r.json(); } catch (e) { return { ok: false, why: 'notjson' }; }
+            return { ok: true, j, ms: Math.round(performance.now() - t0) };
+        } catch (e) {
+            return { ok: false, why: e && e.name === 'AbortError' ? 'timeout' : 'network' };
+        } finally { clrT(to); }
+    }
+
+    function explain(r) {
+        switch (r.why) {
+            case 'timeout': return 'No reply within 1.5 s. Check that the ESP32 is powered, on the same Wi-Fi, and that the address is right.';
+            case 'http': return r.status === 404
+                ? 'A server answered but it has no I/O bridge. Flash the firmware with IO_BRIDGE_ENABLED set to 1.'
+                : 'The board answered with HTTP ' + r.status + '.';
+            case 'notjson': return 'A server answered, but not with I/O data. This is not the ESP32 firmware, or it is an old version without the I/O bridge.';
+            default: return 'Could not reach the board.' + (B.cfg.host
+                ? ' If the address is correct, set IO_ALLOW_CORS to 1 in config.h (needed when this page is not served by the ESP32).'
+                : ' Check the Wi-Fi connection and the address.');
+        }
+    }
+
+    const pinCount = () => new Set([...list('GPIO_IN'), ...list('GPIO_OUT')]).size;
+
+    // one sync with the board; updates connection state.
+    // A failed request never drops the link by itself: it stays "connected" until the board
+    // has been silent for OFFLINE_AFTER_MS (Wi-Fi really lost).
+    async function attempt() {
+        inflight = true;
+        const { q, active } = build();
+        const res = await call('/io?' + q, B.connected ? 4000 : 3000);
+        if (res.ok) {
+            failures = 0; lastOk = performance.now(); B.weak = false;
+            if (!B.connected) {
+                B.connected = true; builtFor = '';
+                await loadCaps();
+                B.message = 'Connected' + (B.cfg.host ? ' to ' + B.cfg.host : '') + ' in ' + res.ms + ' ms. ' + pinCount() + ' pins available. (' + clock() + ')';
+                B.messageOk = true;
+                showToast('ESP32 I/O connected');
+            }
+            apply(res.j);
+        } else if (B.connected) {
+            failures++;
+            const silent = performance.now() - lastOk;
+            const limit = navigator.onLine === false ? OFFLINE_AFTER_NAVOFF_MS : OFFLINE_AFTER_MS;
+            if (silent >= limit) {
+                B.connected = false; B.weak = false;
+                B.message = 'Wi-Fi link lost: no reply from the board for ' + Math.round(silent / 1000) + ' s. ' + explain(res) + ' (' + clock() + ')';
+                B.messageOk = false;
+                showToast('ESP32 I/O connection lost');
+            } else {
+                B.weak = true;   // hiccup: keep the link, just show it as unstable
+            }
+        }
+        inflight = false;
+        paint();
+        return { res, active };
+    }
+
+    let timer = null;
+    const schedule = ms => { clrT(timer); if (ms !== null) timer = setT(pump, ms); };
+
+    async function pump() {
+        if (inflight || B.busy) { schedule(200); return; }
+        if (!B.connected && !B.cfg.auto) return;   // auto-retry was switched off after this tick was scheduled
+        const { res, active } = await attempt();
+        // connected: normal pace (fast retry after a hiccup); offline: retry every 3 s
+        schedule(B.connected ? (!res.ok ? 250 : active ? 80 : 300) : (B.cfg.auto ? 3000 : null));
+    }
+
+    // the Connect button: up to 3 tries, then report the result
+    B.connectNow = async () => {
+        if (B.busy) return;
+        B.busy = true; clrT(timer);
+        const wasConnected = B.connected;
+        while (inflight) await sleep(50);
+        let res = null;
+        for (let k = 1; k <= 3 && !(res && res.ok); k++) {
+            B.progress = 'Attempt ' + k + ' of 3...';
+            paint();
+            res = (await attempt()).res;
+            if (!res.ok && k < 3) await sleep(700);
+        }
+        B.busy = false; B.progress = '';
+        if (res.ok) {
+            if (wasConnected) {
+                B.message = 'Already connected' + (B.cfg.host ? ' to ' + B.cfg.host : '') + ' (' + res.ms + ' ms). (' + clock() + ')';
+                B.messageOk = true;
+            }
+            showToast('ESP32 I/O is online');
+        } else {
+            B.message = explain(res) + ' (' + clock() + ')';
+            B.messageOk = false;
+            showToast('ESP32 I/O is still offline');
+        }
+        paint();
+        schedule(B.connected ? 300 : (B.cfg.auto ? 3000 : null));
+    };
+
+    async function loadCaps() {
+        const r = await call('/io/caps');
+        if (r.ok && Array.isArray(r.j.in) && Array.isArray(r.j.out)) { B.caps = r.j; builtFor = ''; }
+    }
+
+    // ---- UI
+    function addPart(type, p) {
+        const r = canvas.getBoundingClientRect(), n = parts(type).length;
+        const sx = type === 'GPIO_IN' ? 90 : r.width - 150, sy = 100 + (n % 8) * 60;
+        const c = createComponent(type, (sx - state.pan.x) / state.zoom, (sy - state.pan.y) / state.zoom, 'G' + p, { pin: p });
+        state.selectedCompId = c.id;
+        showToast('Added ' + (type === 'GPIO_IN' ? 'input' : 'output') + ' on GPIO' + p);
+    }
+
+    function buildPanel() {
+        const all = [...new Set([...list('GPIO_IN'), ...list('GPIO_OUT')])].sort((a, b) => a - b);
+        $('io-pins').innerHTML = all.map(p => {
+            const canIn = list('GPIO_IN').includes(p), canOut = list('GPIO_OUT').includes(p);
+            const btn = (t, label, ok) => ok
+                ? `<button data-add="${t}" data-pin="${p}" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[10px] text-slate-200">${label}</button>`
+                : `<span class="px-1.5 py-0.5 text-[10px] text-slate-600">${label}</span>`;
+            return `<div class="flex items-center justify-between gap-1 bg-slate-950/60 border border-slate-800 rounded-lg px-2 py-1">
+                <span class="flex items-center gap-1.5 font-mono text-[11px] text-slate-200"><span id="io-d${p}" class="w-2 h-2 rounded-full bg-slate-700"></span>${p}</span>
+                <span class="flex gap-1">${btn('GPIO_IN', 'In', canIn)}${btn('GPIO_OUT', 'Out', canOut)}</span></div>`;
+        }).join('');
+        builtFor = all.join(',');
+    }
+
+    function paint() {
+        const dot = $('io-dot'), lab = $('io-label');
+        if (!dot) return;
+        dot.className = 'w-2 h-2 rounded-full ' + (B.busy ? 'bg-amber-400 animate-pulse' : B.connected ? (B.weak ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400') : 'bg-slate-500');
+        lab.textContent = B.busy ? 'Connecting...' : B.connected ? (B.weak ? 'ESP32 I/O (weak)' : 'ESP32 I/O') : 'I/O offline';
+        const panel = $('io-panel');
+        if (panel.classList.contains('hidden')) return;
+        const key = [...new Set([...list('GPIO_IN'), ...list('GPIO_OUT')])].sort((a, b) => a - b).join(',');
+        if (builtFor !== key) buildPanel();
+        $('io-status').textContent = B.busy ? 'connecting' : B.connected ? (B.weak ? 'connected (unstable)' : 'connected') : 'not connected';
+        $('io-note').textContent = B.connected
+            ? 'Live. Add a pin part, or pick a pin for a Switch, Button or LED in the Inspector.'
+            : 'No ESP32 found. Pin inputs work as clickable switches and pin outputs stay simulated.';
+        const btn = $('io-connect');
+        btn.disabled = B.busy;
+        btn.textContent = B.busy ? B.progress : (B.connected ? 'Reconnect' : 'Connect I/O');
+        const msg = $('io-msg');
+        msg.textContent = B.message;
+        msg.className = 'text-[11px] min-h-[1rem] ' + (B.messageOk ? 'text-emerald-400' : 'text-rose-400');
+        const used = new Set([...inParts(), ...outParts()].map(c => spec(c).pin));
+        $('io-pins').querySelectorAll('[id^="io-d"]').forEach(el => {
+            const p = +el.id.slice(4);
+            const lv = B.sent[p] !== undefined ? B.sent[p] : B.levels[String(p)];
+            el.className = 'w-2 h-2 rounded-full ' + (lv ? 'bg-emerald-400' : used.has(p) ? 'bg-slate-500' : 'bg-slate-700');
+        });
+    }
+
+    B.togglePanel = () => {
+        const panel = $('io-panel');
+        panel.classList.toggle('hidden');
+        if (!panel.classList.contains('hidden')) { $('io-host').value = B.cfg.host; $('io-auto').checked = B.cfg.auto; }
+        builtFor = ''; paint();
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        $('io-pins').addEventListener('click', e => {
+            const b = e.target.closest('[data-add]');
+            if (b) addPart(b.dataset.add, +b.dataset.pin);
+        });
+        $('io-connect').addEventListener('click', () => B.connectNow());
+        $('io-host').addEventListener('change', e => {
+            B.cfg.host = e.target.value.trim(); saveCfg();
+            B.connected = false; failures = 0; B.message = ''; B.caps = FALLBACK; builtFor = '';
+            B.connectNow();
+        });
+        $('io-host').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur(); });
+        $('io-auto').addEventListener('change', e => {
+            B.cfg.auto = e.target.checked; saveCfg();
+            if (B.cfg.auto && !B.connected && !B.busy) schedule(50);
+            if (!B.cfg.auto && !B.connected) clrT(timer);
+        });
+        pump();
+    });
+
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && !B.busy) schedule(0); });
+    window.addEventListener('online', () => { if (!B.busy) schedule(0); });
+
+    // release every pin when the tab is closed
+    window.addEventListener('pagehide', () => { if (B.connected) fetch(base() + '/io?i=&o=', { keepalive: true }).catch(() => {}); });
+})();
+</script>
+</body>
+</html>
